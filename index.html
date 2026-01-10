@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Espectral RPG - Ficha de Espectros</title>
+  <style>
+    :root {
+      --primary: #ffcc00;
+      --bg-dark: #0d0d0d;
+      --bg-card: #1a1a1a;
+      --bg-sidebar: #111;
+      --text: #f0f0f0;
+      --danger: #ff5555;
+      --success: #00ffcc;
+      --sanity: #9933ff;
+      --effort: #3399ff;
+      --belief: #ff9933;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      margin: 0; padding: 0;
+      display: flex; height: 100vh; overflow: hidden;
+    }
+
+    /* BARRA LATERAL */
+    .sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; padding: 20px 10px; }
+    .sidebar h3 { text-align: center; color: var(--primary); text-transform: uppercase; font-size: 14px; letter-spacing: 2px; margin-bottom: 20px; }
+    .lista-agentes { flex: 1; overflow-y: auto; }
+    .agente-card { display: flex; align-items: center; padding: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: 0.3s; }
+    .agente-card:hover { border-color: var(--primary); }
+    .agente-card.active { border-color: var(--primary); box-shadow: inset 0 0 10px rgba(255, 204, 0, 0.2); }
+    .agente-card img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 1px solid #444; }
+    .agente-card .nome { font-weight: bold; font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .agente-card .classe { font-size: 11px; color: #888; }
+
+    /* AREA PRINCIPAL */
+    .main-wrapper { flex: 1; overflow-y: auto; padding: 20px; display: flex; justify-content: center; }
+    .main-container { width: 100%; max-width: 1000px; }
+
+    .tab-nav { display: flex; background-color: #111; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px 12px 0 0; }
+    .tab-btn { flex: 1; background: none; border: none; color: #888; padding: 15px; cursor: pointer; font-weight: bold; text-transform: uppercase; font-size: 11px; }
+    .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); background: rgba(255, 204, 0, 0.05); }
+    .tab-content { display: none; background: var(--bg-card); padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); border-top: none; border-radius: 0 0 12px 12px; }
+    .tab-content.active { display: block; }
+
+    /* CABEÇALHO COMPACTO E STATUS */
+    .header-agente { display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-start; }
+    .inputs-compactos { width: 220px; display: grid; gap: 8px; }
+    .inputs-compactos input, .inputs-compactos select { padding: 6px; font-size: 12px; background: #111; border: 1px solid #333; color: white; border-radius: 4px; }
+
+    .status-container { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border: 1px solid #333; }
+    .status-item { display: flex; flex-direction: column; gap: 4px; }
+    .status-label { font-size: 11px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+    .status-inputs { display: flex; align-items: center; gap: 5px; }
+    .status-inputs input { width: 40px; text-align: center; padding: 2px; font-size: 12px; background: #000; border: 1px solid #444; color: white; border-radius: 3px; }
+    
+    .progress-bg { height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+    .progress-fill { height: 100%; width: 100%; transition: 0.4s; }
+
+    .bg-vida { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+    .bg-san { background: var(--sanity); box-shadow: 0 0 8px var(--sanity); }
+    .bg-pe { background: var(--effort); box-shadow: 0 0 8px var(--effort); }
+    .bg-crenca { background: var(--belief); box-shadow: 0 0 8px var(--belief); }
+
+    /* Perícias */
+    .categoria-bloco { background: rgba(255, 255, 255, 0.03); border: 1px solid #333; border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
+    .categoria-header { background: rgba(255, 255, 0, 0.05); padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; }
+    .categoria-titulo { color: var(--primary); font-size: 12px; font-weight: bold; text-transform: uppercase; }
+    .soma-tag { background: #333; color: var(--primary); padding: 2px 8px; border-radius: 10px; font-size: 10px; }
+    .pericia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 15px; }
+    .pericia-box { background: #222; padding: 8px; border-radius: 6px; border: 1px solid #333; }
+    .pericia-val { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+    
+    .bonus-tag { font-size: 10px; color: var(--success); font-weight: bold; }
+    .action-btn { background: linear-gradient(135deg, #3a3a3a, #1f1f1f); color: var(--primary); border: 1px solid #444; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; }
+    .action-btn:hover { background: var(--primary); color: black; }
+    
+    #previewFoto { width: 100px; height: 100px; border-radius: 8px; border: 2px solid #444; object-fit: cover; }
+    .item-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; background: #252525; padding: 6px; margin-bottom: 5px; border-radius: 6px; align-items: center; }
+
+    /* Dados */
+    #dadoD20, #dadoDano {
+      width: 170px; height: 170px; background-image: url('d20b.png'); /* Exemplo de placeholder para D20 */
+      background-size: contain; background-repeat: no-repeat; background-position: center;
+      border: 2px solid #333; border-radius: 50%;
+      margin: 20px auto; display: flex; align-items: center; justify-content: center;
+      font-size: 32px; font-weight: bold; transition: transform 0.6s ease-out;
+    }
+    .res-texto { font-size: 22px; font-weight: bold; margin-top: 10px; text-align: center; }
+    .res-detalhe { color: #888; font-size: 13px; margin-top: 5px; text-align: center; font-style: italic; }
+  </style>
+</head>
+<body oninput="autoSalvar()" onchange="autoSalvar()">
+
+<aside class="sidebar">
+  <h3>ESPECTROS</h3>
+  <div id="listaAgentesLateral" class="lista-agentes"></div>
+  <button class="action-btn" onclick="novoAgente()" style="margin-top: 10px;">+ Novo Espectro</button>
+</aside>
+
+<main class="main-wrapper">
+  <div class="main-container">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="openTab(event, 'tabPersonagem')">Espectro</button>
+      <button class="tab-btn" onclick="openTab(event, 'tabRolar')">Testes</button>
+      <button class="tab-btn" onclick="openTab(event, 'tabCombate')">Arsenal</button>
+      <button class="tab-btn" onclick="openTab(event, 'tabHabilidades')">Poderes</button>
+      <button class="tab-btn" onclick="openTab(event, 'tabInventario')">Carga</button>
+    </div>
+
+    <div id="tabPersonagem" class="tab-content active">
+      <div class="header-agente">
+        <div class="inputs-compactos">
+          <input type="text" id="nomeAgente" placeholder="Nome do Espectro" onblur="autoSalvar(true)">
+          <select id="classeAgente" onchange="aplicarClasse()">
+            <option value="">Classe...</option>
+            <option value="Espreitador">Espreitador</option>
+            <option value="Lutador">Lutador</option>
+            <option value="Inventor">Inventor</option>
+            <option value="Espírita">Espírita</option>
+            <option value="Sobrevivente">Sobrevivente</option>
+            <option value="Altruísta">Altruísta</option>
+            <option value="Mentalista">Mentalista</option>
+          </select>
+          <input type="text" id="ocupacaoAgente" placeholder="Ocupação">
+          <div style="text-align: center; margin-top: 5px;">
+            <img id="previewFoto" src="https://via.placeholder.com/150" onclick="document.getElementById('inputFoto').click()" style="cursor:pointer">
+            <input type="file" id="inputFoto" style="display:none" onchange="uploadFoto()">
+          </div>
+        </div>
+
+        <div class="status-container">
+          <div class="status-item">
+            <div class="status-label"><span>VIDA (PV)</span><div class="status-inputs"><input type="number" id="pvAtu">/ <input type="number" id="pvMax"></div></div>
+            <div class="progress-bg"><div id="bar-pv" class="progress-fill bg-vida"></div></div>
+          </div>
+          <div class="status-item">
+            <div class="status-label"><span>SANIDADE</span><div class="status-inputs"><input type="number" id="sanAtu">/ <input type="number" id="sanMax"></div></div>
+            <div class="progress-bg"><div id="bar-san" class="progress-fill bg-san"></div></div>
+          </div>
+          <div class="status-item">
+            <div class="status-label"><span>ESFORÇO (PE)</span><div class="status-inputs"><input type="number" id="peAtu">/ <input type="number" id="peMax"></div></div>
+            <div class="progress-bg"><div id="bar-pe" class="progress-fill bg-pe"></div></div>
+          </div>
+          <div class="status-item">
+            <div class="status-label"><span>CRENÇA</span><div class="status-inputs"><input type="number" id="crAtu">/ <input type="number" id="crMax"></div></div>
+            <div class="progress-bg"><div id="bar-cr" class="progress-fill bg-crenca"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls-header" style="margin-bottom: 10px;">
+        <button class="action-btn" id="btnToggleGeral" onclick="togglePericiasGeral()" style="font-size: 11px;">[ - ] Recolher Perícias</button>
+      </div>
+
+      <div id="containerCategorias"></div>
+      
+      <div style="text-align: center; margin-top: 20px;">
+         <button class="action-btn" style="color:var(--danger); border-color: #552222; font-size: 10px;" onclick="deletarAtual()">🗑️ Deletar Este Personagem</button>
+      </div>
+    </div>
+
+    <div id="tabRolar" class="tab-content">
+      <h2 style="text-align:center">Testes de Perícia</h2>
+      <div style="text-align: center;">
+        <select id="selectTeste" style="width: 280px; padding:10px; background:#111; color:white; border:1px solid #333;"></select><br><br>
+        <button class="action-btn" onclick="rolarD20()" style="padding: 15px 40px; font-size: 18px;">Rolar D20</button>
+        <div id="dadoD20">?</div>
+        <div id="resTeste" class="res-texto"></div>
+      </div>
+    </div>
+
+    <div id="tabCombate" class="tab-content">
+      <h2>Arsenal</h2>
+      <div style="background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px;">
+        <input type="text" id="armaNome" placeholder="Arma" style="flex:2; padding:8px;">
+        <input type="text" id="armaDano" placeholder="Dano (ex: 2d6+4)" style="flex:1; padding:8px;">
+        <button class="action-btn" onclick="addArma()">+</button>
+      </div>
+      <div id="listaArmas"></div>
+      <div style="text-align: center; margin-top: 30px; border-top:1px solid #333; padding-top:20px;">
+        <div id="dadoDano">Dano</div>
+        <div id="resDanoTexto" class="res-texto"></div>
+        <div id="resDanoDetalhes" class="res-detalhe"></div>
+      </div>
+    </div>
+
+    <div id="tabHabilidades" class="tab-content">
+      <h2>Poderes & Habilidades</h2>
+      <textarea id="txtPoderes" style="width: 100%; height: 400px; padding:15px; background:#111; color:white; border:1px solid #333; border-radius:8px;"></textarea>
+    </div>
+
+    <div id="tabInventario" class="tab-content">
+      <h2>Mochila & Carga</h2>
+      <div style="background: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items:center;">
+          <span id="labelCarga" style="font-weight:bold; color:var(--primary)">Carga: 0 / 0</span>
+          <label style="cursor:pointer; font-size:12px;"><input type="checkbox" id="checkMochila" onchange="calcPeso()"> 🎒 Usar Mochila</label>
+        </div>
+        <div class="progress-bg" style="height:12px"><div id="progress-fill" class="progress-fill bg-pe" style="width: 0%"></div></div>
+      </div>
+      <div id="listaItens"></div>
+      <button class="action-btn" style="width: 100%; margin-top: 10px;" onclick="addItem()">+ Adicionar Item</button>
+    </div>
+  </div>
+</main>
+
+<script>
+  // CONFIGURAÇÕES GERAIS
+  const categorias = {
+    "Perícias Essenciais": ["força", "destreza", "inteligência", "constituição", "bloqueio", "percepção"],
+    "Diplomacia": ["lábia", "persuasão", "tática", "intimidar", "adestrar"],
+    "Inteligência": ["ciências", "artes", "investigação", "análise", "medicina", "tecnologia", "religião", "sobrevivência"],
+    "Mentalidade": ["espiritismo", "terapia", "intuição", "sorte", "escutar"],
+    "Combate": ["pontaria", "atletismo"],
+    "Velocidade": ["furtividade", "pilotar", "iniciativa", "crime"]
+  };
+
+  const tabela = {
+    1:{N:20}, 2:{N:19,B:20}, 3:{N:18,B:20}, 4:{N:17,B:19}, 5:{N:16,B:19,E:20}, 6:{N:15,B:18,E:20}, 7:{N:14,B:18,E:20}, 8:{N:13,B:17,E:20}, 9:{N:12,B:17,E:20}, 10:{N:11,B:16,E:19}, 11:{N:10,B:16,E:19}, 12:{N:9,B:15,E:19}, 13:{N:8,B:15,E:19}, 14:{N:7,B:14,E:19}, 15:{N:6,B:14,E:18}, 16:{N:5,B:13,E:18}, 17:{N:4,B:13,E:18}, 18:{N:3,B:12,E:18}, 19:{N:2,B:12,E:18}, 20:{N:2,B:11,E:17}
+  };
+
+  const classBonuses = {
+    Espreitador: { destreza: 2, crime: 1, furtividade: 2, iniciativa: 1 },
+    Lutador: { forca: 2, iniciativa: 2, intimidar: 1, constituicao: 1 },
+    Inventor: { tecnologia: 2, inteligencia: 2, sorte: 1, ciencias: 1 },
+    Espírita: { espiritismo: 2, religiao: 2, intuicao: 1, analisar: 1 },
+    Sobrevivente: { sobrevivencia: 2, percepcao: 2, intuicao: 1, furtividade: 1 },
+    Altruísta: { terapia: 2, medicina: 2, labia: 1, intuicao: 1 },
+    Mentalista: { inteligencia: 2, labia: 2, constituicao: 1, analisar: 1 }
+  };
+
+  // ESTADO DA FICHA
+  let ficha = { 
+    idOriginal: "", nome: "Novo Espectro", classe: "", ocupacao: "", periciasBase: {}, 
+    armas: [], inventario: [], mochila: false, poderes: "", foto: "https://via.placeholder.com/150",
+    stats: { pvA: 20, pvM: 20, sanA: 20, sanM: 20, peA: 10, peM: 10, crA: 10, crM: 10 }
+  };
+  
+  let periciasMinimizadas = false;
+  let timerSalvar; let rotD20 = 0; let rotDano = 0;
+
+  window.onload = () => { 
+    initUI(); 
+    atualizarListaLateral();
+    const ultimo = localStorage.getItem("ultimoAgente");
+    if(ultimo) carregarAgente(ultimo);
+  };
+
+  function initUI() {
+    const container = document.getElementById("containerCategorias");
+    const sel = document.getElementById("selectTeste");
+    container.innerHTML = ""; sel.innerHTML = '<option value="">-- Escolha Perícia --</option>';
+    for (let cat in categorias) {
+      const catId = cat.replace(/\s+/g, '');
+      let html = `<div class="categoria-bloco"><div class="categoria-header"><div><span class="categoria-titulo">${cat}</span><span class="soma-tag" id="soma_${catId}">0</span></div></div><div class="pericia-grid" id="grid_${catId}">`;
+      categorias[cat].forEach(p => {
+        ficha.periciasBase[p] = 0;
+        html += `<div class="pericia-box"><label style="text-transform: capitalize; font-size: 10px;">${p} <span id="b_${p}" class="bonus-tag"></span></label><div class="pericia-val"><input type="number" value="0" id="in_${p}" onchange="updateBase('${p}', this.value)" style="width:32px"><strong id="tot_${p}" style="color:var(--primary)">0</strong></div></div>`;
+        sel.innerHTML += `<option value="${p}">${p.toUpperCase()}</option>`;
+      });
+      container.innerHTML += html + `</div></div>`;
+    }
+  }
+
+  // --- LÓGICA DE SALVAMENTO E CARREGAMENTO ---
+  function updateStatusBars() {
+    const getVal = (id) => parseInt(document.getElementById(id).value) || 0;
+    
+    // Captura valores da tela
+    ficha.stats = {
+      pvA: getVal("pvAtu"), pvM: getVal("pvMax") || 1,
+      sanA: getVal("sanAtu"), sanM: getVal("sanMax") || 1,
+      peA: getVal("peAtu"), peM: getVal("peMax") || 1,
+      crA: getVal("crAtu"), crM: getVal("crMax") || 1
+    };
+
+    // Atualiza barras visuais
+    document.getElementById("bar-pv").style.width = Math.min((ficha.stats.pvA/ficha.stats.pvM)*100, 100) + "%";
+    document.getElementById("bar-san").style.width = Math.min((ficha.stats.sanA/ficha.stats.sanM)*100, 100) + "%";
+    document.getElementById("bar-pe").style.width = Math.min((ficha.stats.peA/ficha.stats.peM)*100, 100) + "%";
+    document.getElementById("bar-cr").style.width = Math.min((ficha.stats.crA/ficha.stats.crM)*100, 100) + "%";
+  }
+
+  function autoSalvar(forcarLista = false) {
+    updateStatusBars();
+    clearTimeout(timerSalvar);
+    timerSalvar = setTimeout(() => {
+      const nomeInputs = document.getElementById("nomeAgente").value || "Sem Nome";
+      if (ficha.idOriginal && ficha.idOriginal !== nomeInputs) {
+        localStorage.removeItem("agente_" + ficha.idOriginal);
+      }
+      ficha.nome = nomeInputs;
+      ficha.idOriginal = nomeInputs;
+      ficha.classe = document.getElementById("classeAgente").value;
+      ficha.ocupacao = document.getElementById("ocupacaoAgente").value;
+      ficha.poderes = document.getElementById("txtPoderes").value;
+      ficha.mochila = document.getElementById("checkMochila").checked;
+      ficha.foto = document.getElementById("previewFoto").src;
+
+      localStorage.setItem("agente_" + ficha.nome, JSON.stringify(ficha));
+      localStorage.setItem("ultimoAgente", ficha.nome);
+      if(forcarLista) atualizarListaLateral();
+    }, 500);
+  }
+
+  function carregarAgente(nome) {
+    const dados = JSON.parse(localStorage.getItem("agente_" + nome));
+    if(!dados) return; 
+    
+    ficha = dados;
+    ficha.idOriginal = dados.nome;
+
+    // Preencher campos básicos
+    document.getElementById("nomeAgente").value = ficha.nome;
+    document.getElementById("classeAgente").value = ficha.classe;
+    document.getElementById("ocupacaoAgente").value = ficha.ocupacao;
+    document.getElementById("txtPoderes").value = ficha.poderes || "";
+    document.getElementById("previewFoto").src = ficha.foto || "https://via.placeholder.com/150";
+    document.getElementById("checkMochila").checked = !!ficha.mochila;
+
+    // PREENCHIMENTO OBRIGATÓRIO DOS STATUS (EVITA REPETIR O ANTERIOR)
+    const s = ficha.stats || { pvA: 20, pvM: 20, sanA: 20, sanM: 20, peA: 10, peM: 10, crA: 10, crM: 10 };
+    document.getElementById("pvAtu").value = s.pvA; document.getElementById("pvMax").value = s.pvM;
+    document.getElementById("sanAtu").value = s.sanA; document.getElementById("sanMax").value = s.sanM;
+    document.getElementById("peAtu").value = s.peA; document.getElementById("peMax").value = s.peM;
+    document.getElementById("crAtu").value = s.crA; document.getElementById("crMax").value = s.crM;
+
+    // Perícias
+    for(let p in categorias) {
+      categorias[p].forEach(per => {
+        const val = (ficha.periciasBase && ficha.periciasBase[per]) ? ficha.periciasBase[per] : 0;
+        const input = document.getElementById(`in_${per}`);
+        if(input) input.value = val;
+      });
+    }
+    
+    renderArmas(); renderInv(); calcTudo(); updateStatusBars(); atualizarListaLateral();
+  }
+
+  function novoAgente() {
+    const nome = prompt("Nome do novo espectro:");
+    if(!nome) return;
+    ficha = { 
+      nome, idOriginal: nome, classe: "", ocupacao: "", periciasBase: {}, 
+      armas: [], inventario: [], mochila: false, poderes: "", 
+      foto: "https://via.placeholder.com/150", 
+      stats: { pvA: 20, pvM: 20, sanA: 20, sanM: 20, peA: 10, peM: 10, crA: 10, crM: 10 } 
+    };
+    localStorage.setItem("agente_" + nome, JSON.stringify(ficha));
+    carregarAgente(nome);
+  }
+
+  function atualizarListaLateral() {
+    const lista = document.getElementById("listaAgentesLateral");
+    lista.innerHTML = "";
+    for(let i=0; i<localStorage.length; i++) {
+      let k = localStorage.key(i);
+      if(k.startsWith("agente_")) {
+        const d = JSON.parse(localStorage.getItem(k));
+        const active = (d.nome === ficha.nome) ? "active" : "";
+        lista.innerHTML += `
+          <div class="agente-card ${active}" onclick="carregarAgente('${d.nome}')">
+            <img src="${d.foto}">
+            <div class="info"><span class="nome">${d.nome}</span><span class="classe">${d.classe || 'S/ Classe'}</span></div>
+          </div>`;
+      }
+    }
+  }
+
+  // --- SISTEMA DE ROLAGENS (D20 E DANO) ---
+  function rolarD20() {
+    const p = document.getElementById("selectTeste").value; if(!p) return;
+    const n = getFinalVal(p); const rol = Math.floor(Math.random() * 20) + 1;
+    const d = document.getElementById("dadoD20"); rotD20 += 360;
+    d.style.transform = `rotate(${rotD20}deg)`; d.innerText = "";
+    setTimeout(() => {
+      d.innerText = rol;
+      const lim = tabela[n] || {N:20}; let res = "Fracasso", col = "#ff5555";
+      if(lim.E && rol >= lim.E) { res = "Extremo!"; col = "#00ffcc"; }
+      else if(lim.B && rol >= lim.B) { res = "Bom"; col = "#55ff55"; }
+      else if(rol >= lim.N) { res = "Sucesso"; col = "#ffff55"; }
+      document.getElementById("resTeste").innerHTML = `<span style='color:${col}'>${res}</span>`;
+    }, 600);
+  }
+
+  function rolarDano(expr, nome) {
+    const d = document.getElementById("dadoDano"); rotDano += 360;
+    d.style.transform = `rotate(${rotDano}deg)`; d.innerText = "";
+    setTimeout(() => {
+      const comps = expr.match(/(\d*d\d+|\d+)/g); if(!comps) return;
+      let total = 0, visual = [];
+      comps.forEach(c => {
+        if(c.includes("d")) {
+          const [q, f] = c.split("d").map(Number);
+          let subt = 0, rolls = [];
+          for(let i=0; i<(q||1); i++) { let r = Math.floor(Math.random()*f)+1; subt += r; rolls.push(r); }
+          total += subt; visual.push(rolls.join("+"));
+        } else { total += parseInt(c); visual.push(c); }
+      });
+      d.innerText = total;
+      document.getElementById("resDanoTexto").innerText = `${nome}: ${total}`;
+      document.getElementById("resDanoDetalhes").innerText = `Rolagens: (${visual.join(") + (")})`;
+    }, 600);
+  }
+
+  // --- UTILITÁRIOS ---
+  function updateBase(p, v) { ficha.periciasBase[p] = parseInt(v) || 0; calcTudo(); }
+  function aplicarClasse() { ficha.classe = document.getElementById("classeAgente").value; calcTudo(); }
+  function getFinalVal(p) { return (ficha.periciasBase[p] || 0) + ((classBonuses[ficha.classe] || {})[p] || 0); }
+  function togglePericiasGeral() {
+    periciasMinimizadas = !periciasMinimizadas;
+    document.querySelectorAll('.pericia-grid').forEach(g => g.style.display = periciasMinimizadas ? "none" : "grid");
+    document.getElementById('btnToggleGeral').innerText = periciasMinimizadas ? "[ + ] Expandir Perícias" : "[ - ] Recolher Perícias";
+  }
+  function uploadFoto() {
+    const file = document.getElementById("inputFoto").files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => { document.getElementById("previewFoto").src = e.target.result; autoSalvar(true); };
+    if(file) reader.readAsDataURL(file);
+  }
+  function deletarAtual() { if(confirm("Apagar permanentemente este agente?")) { localStorage.removeItem("agente_" + ficha.nome); location.reload(); } }
+
+  function openTab(e, n) {
+    document.querySelectorAll(".tab-content").forEach(c => c.style.display="none");
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById(n).style.display="block"; e.currentTarget.classList.add("active");
+  }
+
+  function addArma() {
+    const n = document.getElementById("armaNome").value, d = document.getElementById("armaDano").value;
+    if(n && d) { (ficha.armas = ficha.armas || []).push({n, d}); renderArmas(); autoSalvar(); }
+  }
+  function renderArmas() {
+    const l = document.getElementById("listaArmas"); l.innerHTML = "";
+    (ficha.armas || []).forEach((a, i) => {
+      l.innerHTML += `<div class="item-row"><strong>${a.n}</strong><span>${a.d}</span><div><button class="action-btn" onclick="rolarDano('${a.d}', '${a.n}')">⚔️</button> <button class="action-btn" onclick="ficha.armas.splice(${i},1);renderArmas();autoSalvar()" style="color:red">✖</button></div></div>`;
+    });
+  }
+
+  function calcPeso() {
+    const f = getFinalVal("força"); const max = document.getElementById("checkMochila").checked ? f * 2 : f;
+    let atual = 0; (ficha.inventario || []).forEach(i => atual += (i.p || 0));
+    document.getElementById("progress-fill").style.width = Math.min((atual/max)*100, 100) + "%";
+    document.getElementById("labelCarga").innerText = `Carga: ${atual} / ${max}`;
+  }
+  function addItem() { (ficha.inventario = ficha.inventario || []).push({n:"Novo Item", p:1}); renderInv(); autoSalvar(); }
+  function renderInv() {
+    const l = document.getElementById("listaItens"); l.innerHTML = "";
+    (ficha.inventario || []).forEach((it, i) => {
+      l.innerHTML += `<div class="item-row"><input type="text" value="${it.n}" onchange="ficha.inventario[${i}].n=this.value;autoSalvar()"><input type="number" value="${it.p}" style="width:45px" onchange="ficha.inventario[${i}].p=parseInt(this.value);calcPeso();autoSalvar()"> <button onclick="ficha.inventario.splice(${i},1);renderInv();calcPeso();autoSalvar()" style="color:red;background:none;border:none;cursor:pointer">✖</button></div>`;
+    });
+    calcPeso();
+  }
+
+  function calcTudo() {
+    for (let cat in categorias) {
+      const catId = cat.replace(/\s+/g, ''); let soma = 0;
+      categorias[cat].forEach(p => {
+        const b = (classBonuses[ficha.classe] || {})[p] || 0; const t = getFinalVal(p);
+        const bTag = document.getElementById(`b_${p}`); const totTag = document.getElementById(`tot_${p}`);
+        if(bTag) bTag.innerText = b > 0 ? `(+${b})` : ""; if(totTag) totTag.innerText = t; soma += t;
+      });
+      if(document.getElementById(`soma_${catId}`)) document.getElementById(`soma_${catId}`).innerText = soma;
+    }
+    calcPeso();
+  }
+</script>
+</body>
+</html>
