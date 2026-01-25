@@ -382,7 +382,7 @@
       const lim = tabela[n] || {N:20}; let res = "Fracasso", col = "#ff5555";
       if(lim.E && rol >= lim.E) { res = "Extremo!"; col = "#00ffcc"; }
       else if(lim.B && rol >= lim.B) { res = "Bom"; col = "#55ff55"; }
-      else if(rol >= lim.N) { res = "Sucesso"; col = "#ffff55"; }
+      else if(rol >= lim.N) { res = "Normal"; col = "#ffff55"; }
       document.getElementById("resTeste").innerHTML = `<span style='color:${col}'>${res}</span>`;
     }, 600);
   }
