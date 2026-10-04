@@ -1,473 +1,505 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Espectral RPG - Ficha de Espectros</title>
-  <style>
-    :root {
-      --primary: #ffcc00;
-      --bg-dark: #0d0d0d;
-      --bg-card: #1a1a1a;
-      --bg-sidebar: #111;
-      --text: #f0f0f0;
-      --danger: #ff5555;
-      --success: #00ffcc;
-      --sanity: #9933ff;
-      --effort: #3399ff;
-      --belief: #ff9933;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: var(--bg-dark);
-      color: var(--text);
-      margin: 0; padding: 0;
-      display: flex; height: 100vh; overflow: hidden;
-    }
-
-    /* BARRA LATERAL */
-    .sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; padding: 20px 10px; }
-    .sidebar h3 { text-align: center; color: var(--primary); text-transform: uppercase; font-size: 14px; letter-spacing: 2px; margin-bottom: 20px; }
-    .lista-agentes { flex: 1; overflow-y: auto; }
-    .agente-card { display: flex; align-items: center; padding: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: 0.3s; }
-    .agente-card:hover { border-color: var(--primary); }
-    .agente-card.active { border-color: var(--primary); box-shadow: inset 0 0 10px rgba(255, 204, 0, 0.2); }
-    .agente-card img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 1px solid #444; }
-    .agente-card .nome { font-weight: bold; font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .agente-card .classe { font-size: 11px; color: #888; }
-
-    /* AREA PRINCIPAL */
-    .main-wrapper { flex: 1; overflow-y: auto; padding: 20px; display: flex; justify-content: center; }
-    .main-container { width: 100%; max-width: 1000px; }
-
-    .tab-nav { display: flex; background-color: #111; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px 12px 0 0; }
-    .tab-btn { flex: 1; background: none; border: none; color: #888; padding: 15px; cursor: pointer; font-weight: bold; text-transform: uppercase; font-size: 11px; }
-    .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); background: rgba(255, 204, 0, 0.05); }
-    .tab-content { display: none; background: var(--bg-card); padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); border-top: none; border-radius: 0 0 12px 12px; }
-    .tab-content.active { display: block; }
-
-    /* CABEÇALHO COMPACTO E STATUS */
-    .header-agente { display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-start; }
-    .inputs-compactos { width: 220px; display: grid; gap: 8px; }
-    .inputs-compactos input, .inputs-compactos select { padding: 6px; font-size: 12px; background: #111; border: 1px solid #333; color: white; border-radius: 4px; }
-
-    .status-container { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border: 1px solid #333; }
-    .status-item { display: flex; flex-direction: column; gap: 4px; }
-    .status-label { font-size: 11px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-    .status-inputs { display: flex; align-items: center; gap: 5px; }
-    .status-inputs input { width: 40px; text-align: center; padding: 2px; font-size: 12px; background: #000; border: 1px solid #444; color: white; border-radius: 3px; }
-    
-    .progress-bg { height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-top: 4px; }
-    .progress-fill { height: 100%; width: 100%; transition: 0.4s; }
-
-    .bg-vida { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-    .bg-san { background: var(--sanity); box-shadow: 0 0 8px var(--sanity); }
-    .bg-pe { background: var(--effort); box-shadow: 0 0 8px var(--effort); }
-    .bg-crenca { background: var(--belief); box-shadow: 0 0 8px var(--belief); }
-
-    /* Perícias */
-    .categoria-bloco { background: rgba(255, 255, 255, 0.03); border: 1px solid #333; border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
-    .categoria-header { background: rgba(255, 255, 0, 0.05); padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; }
-    .categoria-titulo { color: var(--primary); font-size: 12px; font-weight: bold; text-transform: uppercase; }
-    .soma-tag { background: #333; color: var(--primary); padding: 2px 8px; border-radius: 10px; font-size: 10px; }
-    .pericia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 15px; }
-    .pericia-box { background: #222; padding: 8px; border-radius: 6px; border: 1px solid #333; }
-    .pericia-val { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
-    
-    .bonus-tag { font-size: 10px; color: var(--success); font-weight: bold; }
-    .action-btn { background: linear-gradient(135deg, #3a3a3a, #1f1f1f); color: var(--primary); border: 1px solid #444; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; }
-    .action-btn:hover { background: var(--primary); color: black; }
-    
-    #previewFoto { width: 100px; height: 100px; border-radius: 8px; border: 2px solid #444; object-fit: cover; }
-    .item-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; background: #252525; padding: 6px; margin-bottom: 5px; border-radius: 6px; align-items: center; }
-
-    /* Dados */
-    #dadoD20, #dadoDano {
-      width: 170px; height: 170px; background-image: url('d20b.png'); /* Exemplo de placeholder para D20 */
-      background-size: contain; background-repeat: no-repeat; background-position: center;
-      border: 2px solid #333; border-radius: 50%;
-      margin: 20px auto; display: flex; align-items: center; justify-content: center;
-      font-size: 32px; font-weight: bold; transition: transform 0.6s ease-out;
-    }
-    .res-texto { font-size: 22px; font-weight: bold; margin-top: 10px; text-align: center; }
-    .res-detalhe { color: #888; font-size: 13px; margin-top: 5px; text-align: center; font-style: italic; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Espectral RPG — Arquivo de Espectros</title>
+<style>
+:root{--a:#ffcc00;--ac:255,204,0;--bg:#0b0b0d;--glass:rgba(18,18,22,.62);--bd:rgba(255,255,255,.12);--tx:#ececec;--mut:#8b8b95;--ok:#4ade80;--bad:#ff4d5e;--mono:ui-monospace,"Courier New",Consolas,monospace;box-sizing:border-box}
+body[data-tema=visceral]{--a:#ff2b3a;--ac:255,43,58}
+body[data-tema=desespero]{--a:#b66cff;--ac:182,108,255}
+body[data-tema=fantasmagorico]{--a:#2ee6c0;--ac:46,230,192}
+body[data-tema=escuridao]{--a:#9aa0aa;--ac:154,160,170}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.45 "Segoe UI",system-ui,sans-serif;overflow:hidden;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+.app{position:relative;z-index:1;display:flex;height:100%}
+.glass{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--bd);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.45),inset 0 0 0 1px rgba(var(--ac),.05)}
+aside{width:250px;flex:none;margin:12px 0 12px 12px;padding:14px 10px;display:flex;flex-direction:column}
+.logo{font-family:var(--mono);color:var(--a);text-align:center;letter-spacing:3px;font-size:13px;margin:0 0 4px;text-transform:uppercase}
+.sub{font-family:var(--mono);font-size:9px;text-align:center;color:var(--mut);margin-bottom:12px;letter-spacing:2px}
+#lista{flex:1;overflow:auto}
+.ag{display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--bd);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:.25s;background:rgba(0,0,0,.25)}
+.ag:hover,.ag.on{border-color:var(--a);box-shadow:inset 0 0 14px rgba(var(--ac),.18)}
+.ag img{width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid var(--bd)}
+.ag b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.ag small{color:var(--mut);font-family:var(--mono);font-size:10px}
+button,select,input,textarea{font:inherit;color:var(--tx)}
+.btn{background:rgba(var(--ac),.08);color:var(--a);border:1px solid rgba(var(--ac),.4);padding:8px 14px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;transition:.2s}
+.btn:hover{background:var(--a);color:#000}
+.btn.red{color:var(--bad);border-color:rgba(255,77,94,.4);background:rgba(255,77,94,.07)}
+.btn.red:hover{background:var(--bad);color:#000}
+.btn.sm{padding:4px 9px;font-size:10px}
+input,select,textarea{background:rgba(0,0,0,.5);border:1px solid var(--bd);border-radius:5px;padding:6px 8px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--a)}
+select option{background:#111}
+textarea{resize:vertical;min-height:90px}
+main{flex:1;min-width:0;overflow:auto;padding:12px}
+.wrap{max-width:1020px;margin:0 auto}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px}
+.glitch{font-family:var(--mono);font-size:20px;letter-spacing:4px;color:var(--a);position:relative;text-transform:uppercase;margin:0}
+.glitch::before,.glitch::after{content:attr(data-t);position:absolute;left:0;top:0;opacity:0}
+.glitch::before{color:#f0f;animation:gl 5s infinite}
+.glitch::after{color:#0ff;animation:gl 5s .15s infinite}
+@keyframes gl{0%,92%,100%{opacity:0;transform:none}93%{opacity:.8;transform:translate(-3px,1px);clip-path:inset(10% 0 55% 0)}95%{opacity:.8;transform:translate(3px,-1px);clip-path:inset(60% 0 8% 0)}97%{opacity:0}}
+.tabs{display:flex;overflow:auto;margin-bottom:10px;padding:0}
+.tabs button{flex:1;min-width:84px;background:none;border:0;border-bottom:3px solid transparent;padding:13px 8px;color:var(--mut);font-family:var(--mono);text-transform:uppercase;font-size:11px;letter-spacing:1px;cursor:pointer;transition:.25s}
+.tabs button.on{color:var(--a);border-color:var(--a);background:rgba(var(--ac),.07)}
+.tab{display:none;padding:20px;animation:fi .4s}
+.tab.on{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}}
+h2{font-family:var(--mono);font-size:15px;letter-spacing:2px;text-transform:uppercase;color:var(--a);margin:0 0 14px}
+h2::before{content:"// ";opacity:.5}
+.row{display:grid;grid-template-columns:230px 1fr;gap:16px}
+.ident{display:grid;gap:8px;align-content:start}
+#foto{width:110px;height:110px;border-radius:10px;border:2px solid var(--bd);object-fit:cover;cursor:pointer;margin:4px auto 0;display:block}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px;align-content:start}
+.st label{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:11px;gap:6px}
+.st .n{display:flex;gap:4px;align-items:center}
+.st input{width:52px;text-align:center;padding:3px}
+.bar{height:9px;background:rgba(255,255,255,.1);border-radius:5px;overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;width:0;transition:width .5s,background .3s;border-radius:5px}
+.cat{margin-top:14px;border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.2)}
+.cat header{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:rgba(var(--ac),.07);cursor:pointer;font-family:var(--mono);font-size:12px;text-transform:uppercase;color:var(--a)}
+.tag{background:rgba(0,0,0,.5);border:1px solid var(--bd);border-radius:10px;padding:1px 9px;font-size:10px;color:var(--tx)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:12px}
+.cat.fechado .grid{display:none}
+.per{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:7px;padding:7px}
+.per label{font-size:11px;text-transform:capitalize;display:flex;justify-content:space-between}
+.per label em{font-style:normal;color:var(--ok);font-weight:700;font-size:10px}
+.per div{display:flex;gap:8px;align-items:center;margin-top:5px}
+.per input{width:56px;padding:3px 5px}
+.per strong{color:var(--a);font-size:18px;font-family:var(--mono);margin-left:auto}
+.dado{width:140px;height:140px;margin:18px auto;display:flex;align-items:center;justify-content:center;font:700 38px var(--mono);color:var(--a);border:2px solid rgba(var(--ac),.5);background:radial-gradient(circle,rgba(var(--ac),.18),transparent 70%);clip-path:polygon(50% 0,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%)}
+.dado.rola{animation:giro .7s linear}
+@keyframes giro{to{transform:rotate(720deg) scale(1.15)}}
+.res{text-align:center;font:700 26px var(--mono);margin-top:6px;min-height:34px}
+.det{text-align:center;color:var(--mut);font-size:12px;font-family:var(--mono);margin-top:4px}
+.center{text-align:center}
+.tabela{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-family:var(--mono);font-size:11px}
+.tabela span{border:1px solid var(--bd);border-radius:4px;padding:2px 8px}
+.item{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px;margin-bottom:6px;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:7px}
+.item.inv{grid-template-columns:1fr 80px auto}
+.add{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.add input{flex:1;min-width:120px}
+#bandeja{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;min-height:70px;margin-top:20px}
+.die{width:54px;height:54px;display:flex;align-items:center;justify-content:center;font:700 20px var(--mono);border-radius:9px;background:linear-gradient(145deg,rgba(var(--ac),.35),rgba(0,0,0,.6));border:1px solid var(--a);animation:queda .7s cubic-bezier(.3,1.5,.5,1) both;position:relative}
+.die small{position:absolute;bottom:1px;right:4px;font-size:8px;color:var(--mut)}
+@keyframes queda{from{transform:translateY(-220px) rotate(-300deg);opacity:0}60%{opacity:1}}
+.carga{padding:14px;margin-bottom:14px}
+.carga .bar{height:16px}
+.carga.over .bar i{background:var(--bad)!important;animation:pulso .8s infinite alternate}
+@keyframes pulso{to{opacity:.45}}
+.flex{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.card{border:1px solid var(--bd);border-radius:10px;margin-bottom:10px;background:rgba(0,0,0,.28);overflow:hidden}
+.card>header{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer}
+.card>header:hover{background:rgba(var(--ac),.06)}
+.card .tp{font:10px var(--mono);border:1px solid rgba(var(--ac),.5);color:var(--a);padding:1px 7px;border-radius:9px;text-transform:uppercase}
+.card .cb{display:none;padding:12px;gap:8px;grid-template-columns:1fr 110px 170px}
+.card.aberto .cb{display:grid;animation:fi .3s}
+.card .full{grid-column:1/-1}
+.filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.filtros .btn.on{background:var(--a);color:#000}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.modal.on{display:flex}
+.box{width:100%;max-width:440px;padding:20px;max-height:90%;overflow:auto}
+.livro{max-width:620px;perspective:1400px;min-height:360px;background:linear-gradient(90deg,rgba(0,0,0,.5),rgba(var(--ac),.07) 50%,rgba(0,0,0,.5))}
+.pag{animation:vira .55s ease;transform-origin:left center;font-family:Georgia,serif}
+@keyframes vira{from{transform:rotateY(-80deg);opacity:0}}
+.pag h3{font-family:var(--mono);color:var(--a);margin:6px 0;font-size:20px}
+.pag p{white-space:pre-wrap;line-height:1.7}
+.tem{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 16px}
+.tem .btn.on{background:var(--a);color:#000}
+#salvo{font:10px var(--mono);color:var(--mut);text-align:center;margin-top:8px;transition:.3s}
+#salvo.v{color:var(--ok)}
+.bkbox{max-width:940px;background:rgba(10,8,10,.9)}
+.bk{position:relative;perspective:2000px;min-height:380px}
+.marc{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.marc .on{background:var(--a);color:#000}
+.spread{display:grid;grid-template-columns:1fr 1fr;perspective:1500px;border:1px solid var(--bd);border-radius:8px;min-height:340px;background:linear-gradient(90deg,#17120f,#221a14 49%,#0c0a08 50%,#221a14 51%,#17120f);box-shadow:inset 0 0 40px rgba(0,0,0,.7)}
+.pg{padding:18px 22px;display:flex;flex-direction:column;max-height:56vh;overflow:auto;font-family:Georgia,serif}
+.pg+.pg{border-left:1px solid rgba(0,0,0,.6);transform-origin:left center}
+.spread.anim .pg+.pg{animation:vira .55s ease}
+.spread.anim .pg:first-child{animation:fi .45s}
+.pg h3{font-family:var(--mono);color:var(--a);margin:0 0 6px;font-size:18px}
+.pg h3 small{font-size:11px;opacity:.7}
+.pg p{white-space:pre-wrap;line-height:1.6;flex:1;margin:6px 0}
+.pg .campos{display:flex;flex-wrap:wrap;gap:4px 14px;font:11px var(--mono);color:var(--mut);margin-bottom:8px}
+.pg .campos b{color:var(--a)}
+.rod{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.pg.lock{grid-column:1/-1;align-items:center;justify-content:center;text-align:center}
+.capa{position:absolute;inset:0;z-index:5;transform-origin:left center;transition:transform 1.2s cubic-bezier(.65,0,.25,1);background:radial-gradient(circle at 50% 40%,rgba(var(--ac),.25),transparent 60%),linear-gradient(135deg,#1b0d10,#050505);border:2px solid var(--a);border-radius:6px 14px 14px 6px;display:flex;align-items:center;justify-content:center;text-align:center;backface-visibility:hidden;box-shadow:0 0 40px rgba(var(--ac),.35)}
+.capa h3{font:22px var(--mono);color:var(--a);letter-spacing:3px;text-transform:uppercase;margin:10px}
+.capa .sg{font-size:54px}
+.bk.aberto .capa{transform:rotateY(-178deg)}
+.fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:40;width:54px;height:54px;border-radius:50%;font-size:22px;padding:0;background:rgba(var(--ac),.18);backdrop-filter:blur(8px);box-shadow:0 0 20px rgba(var(--ac),.45)}
+.nbox{max-width:840px;z-index:1}
+.nstage{position:relative;aspect-ratio:900/560;width:100%;border:1px solid var(--bd);border-radius:8px;background:rgba(0,0,0,.45);overflow:hidden}
+#nTxt{position:absolute;inset:0;width:100%;height:100%;resize:none;background:transparent;border:0;border-radius:0;font:15px/1.6 Georgia,serif;padding:10px 14px}
+#nCv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;pointer-events:none;cursor:crosshair}
+.nstage.des #nCv{pointer-events:auto}.nstage.des #nTxt{pointer-events:none}
+.sw{width:24px;height:24px;border-radius:50%;border:2px solid var(--bd);cursor:pointer;padding:0}
+.sw.on{border-color:#fff;transform:scale(1.18)}
+#nTools input[type=range]{width:90px;padding:0}
+@media(max-width:820px){.spread{grid-template-columns:1fr}.pg+.pg{border-left:0;border-top:1px solid rgba(0,0,0,.6)}.app{flex-direction:column}aside{width:auto;margin:8px 8px 0;max-height:150px;padding:8px}#lista{display:flex;gap:8px;overflow:auto}.ag{min-width:170px;margin:0}.row{grid-template-columns:1fr}.card .cb{grid-template-columns:1fr}.tab{padding:14px}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important}}
+</style>
 </head>
-<body oninput="autoSalvar()" onchange="autoSalvar()">
-
-<aside class="sidebar">
-  <h3>ESPECTROS</h3>
-  <div id="listaAgentesLateral" class="lista-agentes"></div>
-  <button class="action-btn" onclick="novoAgente()" style="margin-top: 10px;">+ Novo Espectro</button>
+<body data-tema="padrao">
+<canvas id="bg"></canvas>
+<div class="app">
+<aside class="glass">
+  <h3 class="logo">Espectros</h3><div class="sub">ARQUIVO CONFIDENCIAL</div>
+  <div id="lista"></div>
+  <button class="btn" style="margin-top:10px" onclick="novo()">+ Novo Espectro</button>
+  <div id="salvo">● salvo</div>
 </aside>
+<main><div class="wrap">
+  <div class="top"><h1 class="glitch" data-t="Espectral RPG">Espectral RPG</h1><button class="btn" onclick="abrirCfg()">⚙ Config</button></div>
+  <nav class="tabs glass" id="tabs"></nav>
 
-<main class="main-wrapper">
-  <div class="main-container">
-    <div class="tab-nav">
-      <button class="tab-btn active" onclick="openTab(event, 'tabPersonagem')">Espectro</button>
-      <button class="tab-btn" onclick="openTab(event, 'tabRolar')">Testes</button>
-      <button class="tab-btn" onclick="openTab(event, 'tabCombate')">Arsenal</button>
-      <button class="tab-btn" onclick="openTab(event, 'tabHabilidades')">Poderes</button>
-      <button class="tab-btn" onclick="openTab(event, 'tabInventario')">Carga</button>
+  <section class="tab glass on" id="t-esp">
+    <h2>Identificação</h2>
+    <div class="row">
+      <div class="ident">
+        <input id="nome" placeholder="Nome do Espectro" oninput="campo('nome',this.value)">
+        <select id="classe" onchange="campo('classe',this.value);calc();renderPoderes()"><option value="">Classe...</option></select>
+        <input id="ocup" placeholder="Ocupação" oninput="campo('ocupacao',this.value)">
+        <img id="foto" alt="Foto" onclick="$('inFoto').click()"><input type="file" id="inFoto" accept="image/*" hidden onchange="upFoto(this)">
+      </div>
+      <div class="stats glass" id="stats"></div>
     </div>
+    <div class="flex" style="margin-top:16px"><h2 style="margin:0">Perícias</h2><div><span class="tag" id="sEss"></span> <span class="tag" id="sGer"></span> <button class="btn sm" onclick="toggleCats()">Recolher/Expandir</button></div></div>
+    <div id="cats"></div>
+    <div class="center" style="margin-top:20px"><button class="btn red sm" onclick="deletar()">🗑 Deletar este personagem</button></div>
+  </section>
 
-    <div id="tabPersonagem" class="tab-content active">
-      <div class="header-agente">
-        <div class="inputs-compactos">
-          <input type="text" id="nomeAgente" placeholder="Nome do Espectro" onblur="autoSalvar(true)">
-          <select id="classeAgente" onchange="aplicarClasse()">
-            <option value="">Classe...</option>
-            <option value="Espreitador">Espreitador</option>
-            <option value="Lutador">Lutador</option>
-            <option value="Inventor">Inventor</option>
-            <option value="Espírita">Espírita</option>
-            <option value="Sobrevivente">Sobrevivente</option>
-            <option value="Altruísta">Altruísta</option>
-            <option value="Mentalista">Mentalista</option>
-          </select>
-          <input type="text" id="ocupacaoAgente" placeholder="Ocupação">
-          <div style="text-align: center; margin-top: 5px;">
-            <img id="previewFoto" src="https://via.placeholder.com/150" onclick="document.getElementById('inputFoto').click()" style="cursor:pointer">
-            <input type="file" id="inputFoto" style="display:none" onchange="uploadFoto()">
-          </div>
-        </div>
+  <section class="tab glass" id="t-tes">
+    <h2>Testes de Perícia</h2>
+    <div class="add" style="justify-content:center"><select id="selTeste" style="max-width:260px"></select><input id="modTeste" type="number" value="0" placeholder="Modificador" style="max-width:130px" title="Modificador temporário"></div>
+    <div class="center"><button class="btn" style="padding:12px 34px;font-size:15px" onclick="rolarTeste()">Rolar d20</button></div>
+    <div class="dado" id="d20">?</div>
+    <div class="res" id="resT"></div><div class="det" id="detT"></div>
+    <div class="tabela" id="tabT"></div>
+  </section>
 
-        <div class="status-container">
-          <div class="status-item">
-            <div class="status-label"><span>VIDA (PV)</span><div class="status-inputs"><input type="number" id="pvAtu">/ <input type="number" id="pvMax"></div></div>
-            <div class="progress-bg"><div id="bar-pv" class="progress-fill bg-vida"></div></div>
-          </div>
-          <div class="status-item">
-            <div class="status-label"><span>SANIDADE</span><div class="status-inputs"><input type="number" id="sanAtu">/ <input type="number" id="sanMax"></div></div>
-            <div class="progress-bg"><div id="bar-san" class="progress-fill bg-san"></div></div>
-          </div>
-          <div class="status-item">
-            <div class="status-label"><span>ESFORÇO (PE)</span><div class="status-inputs"><input type="number" id="peAtu">/ <input type="number" id="peMax"></div></div>
-            <div class="progress-bg"><div id="bar-pe" class="progress-fill bg-pe"></div></div>
-          </div>
-          <div class="status-item">
-            <div class="status-label"><span>CRENÇA</span><div class="status-inputs"><input type="number" id="crAtu">/ <input type="number" id="crMax"></div></div>
-            <div class="progress-bg"><div id="bar-cr" class="progress-fill bg-crenca"></div></div>
-          </div>
-        </div>
-      </div>
+  <section class="tab glass" id="t-arm">
+    <h2>Arsenal</h2>
+    <div class="add"><input id="aNome" placeholder="Arma" style="flex:2"><input id="aDano" placeholder="Dano (ex: 2d6+4)"><button class="btn" onclick="addArma()">+ Adicionar</button></div>
+    <div id="armas"></div>
+    <div id="bandeja"></div><div class="res" id="resD"></div><div class="det" id="detD"></div>
+  </section>
 
-      <div class="controls-header" style="margin-bottom: 10px;">
-        <button class="action-btn" id="btnToggleGeral" onclick="togglePericiasGeral()" style="font-size: 11px;">[ - ] Recolher Perícias</button>
-      </div>
+  <section class="tab glass" id="t-pod">
+    <div class="flex"><h2>Grimório de Poderes</h2><div><button class="btn" onclick="abrirLivro('hab')">📖 Livro de Habilidades</button> <button class="btn" onclick="abrirLivro('rit')">📕 Livro de Rituais</button></div></div><div class="det" id="acesso" style="text-align:left;margin:6px 0 10px"></div>
+    <div class="filtros" id="filtros"></div>
+    <div class="filtros"><button class="btn sm" onclick="addPoder('Habilidade de Classe')">+ Habilidade</button><button class="btn sm" onclick="addPoder('Multiclasse')">+ Multiclasse</button><button class="btn sm" onclick="addPoder('Ritual')">+ Ritual</button></div>
+    <div id="poderes"></div>
+  </section>
 
-      <div id="containerCategorias"></div>
-      
-      <div style="text-align: center; margin-top: 20px;">
-         <button class="action-btn" style="color:var(--danger); border-color: #552222; font-size: 10px;" onclick="deletarAtual()">🗑️ Deletar Este Personagem</button>
-      </div>
+  <section class="tab glass" id="t-car">
+    <h2>Mochila &amp; Carga</h2>
+    <div class="carga glass" id="cargaBox">
+      <div class="flex"><b id="cargaLbl" style="font-family:var(--mono);color:var(--a)">Carga: 0 / 0</b>
+      <select id="selMoch" style="width:auto" onchange="campo('mochila',+this.value);calcCarga()">
+        <option value="1">Sem Mochila (×1)</option><option value="2">Mochila Normal (×2)</option><option value="3">Mochila Tática (×3)</option></select></div>
+      <div class="bar"><i id="cargaBar" style="background:var(--a)"></i></div>
+      <div class="det" id="cargaInfo"></div>
     </div>
+    <div id="itens"></div>
+    <button class="btn" style="width:100%" onclick="addItem()">+ Adicionar item</button>
+  </section>
+</div></main>
+<button class="btn fab" onclick="abrirNotas()" title="Anotações" aria-label="Anotações">✏️</button>
+</div>
 
-    <div id="tabRolar" class="tab-content">
-      <h2 style="text-align:center">Testes de Perícia</h2>
-      <div style="text-align: center;">
-        <select id="selectTeste" style="width: 280px; padding:10px; background:#111; color:white; border:1px solid #333;"></select><br><br>
-        <button class="action-btn" onclick="rolarD20()" style="padding: 15px 40px; font-size: 18px;">Rolar D20</button>
-        <div id="dadoD20">?</div>
-        <div id="resTeste" class="res-texto"></div>
-      </div>
-    </div>
-
-    <div id="tabCombate" class="tab-content">
-      <h2>Arsenal</h2>
-      <div style="background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px;">
-        <input type="text" id="armaNome" placeholder="Arma" style="flex:2; padding:8px;">
-        <input type="text" id="armaDano" placeholder="Dano (ex: 2d6+4)" style="flex:1; padding:8px;">
-        <button class="action-btn" onclick="addArma()">+</button>
-      </div>
-      <div id="listaArmas"></div>
-      <div style="text-align: center; margin-top: 30px; border-top:1px solid #333; padding-top:20px;">
-        <div id="dadoDano">Dano</div>
-        <div id="resDanoTexto" class="res-texto"></div>
-        <div id="resDanoDetalhes" class="res-detalhe"></div>
-      </div>
-    </div>
-
-    <div id="tabHabilidades" class="tab-content">
-      <h2>Poderes & Habilidades</h2>
-      <textarea id="txtPoderes" style="width: 100%; height: 400px; padding:15px; background:#111; color:white; border:1px solid #333; border-radius:8px;"></textarea>
-    </div>
-
-    <div id="tabInventario" class="tab-content">
-      <h2>Mochila & Carga</h2>
-      <div style="background: #111; padding: 15px; border-radius: 10px; border: 1px solid #333; margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items:center;">
-          <span id="labelCarga" style="font-weight:bold; color:var(--primary)">Carga: 0 / 0</span>
-          <label style="cursor:pointer; font-size:12px;"><input type="checkbox" id="checkMochila" onchange="calcPeso()"> 🎒 Usar Mochila</label>
-        </div>
-        <div class="progress-bg" style="height:12px"><div id="progress-fill" class="progress-fill bg-pe" style="width: 0%"></div></div>
-      </div>
-      <div id="listaItens"></div>
-      <button class="action-btn" style="width: 100%; margin-top: 10px;" onclick="addItem()">+ Adicionar Item</button>
-    </div>
-  </div>
-</main>
+<div class="modal" id="mCfg" onclick="if(event.target===this)modal('mCfg',0)"><div class="box glass">
+  <h2>Configurações</h2>
+  <div class="tem" id="temas"></div>
+  <label class="det" style="text-align:left">Escala da interface: <b id="escLbl"></b></label>
+  <input type="range" id="esc" min="80" max="130" step="5" oninput="setEscala(+this.value)">
+  <div class="det" id="infoArm" style="text-align:left;margin-top:16px"></div>
+  <div class="marc" style="margin-top:8px"><button class="btn sm" onclick="exportar()">⬇ Exportar backup</button><button class="btn sm" onclick="$('inBk').click()">⬆ Importar backup</button><input type="file" id="inBk" accept=".json,application/json" hidden onchange="importar(this)"></div>
+  <div class="center" style="margin-top:16px"><button class="btn" onclick="modal('mCfg',0)">Fechar</button></div>
+</div></div>
+<div class="modal" id="mNotas" style="z-index:60" onclick="if(event.target===this)modal('mNotas',0)"><div class="box nbox glass">
+  <div class="flex" style="margin-bottom:10px"><h2 style="margin:0">Anotações</h2><div class="marc" id="nAbas" style="margin:0"><button class="btn sm on" data-a="esc" onclick="notaModo('esc')">✎ Escrever</button><button class="btn sm" data-a="des" onclick="notaModo('des')">🖌 Desenhar</button></div></div>
+  <div class="marc" id="nTools" style="display:none"></div>
+  <div class="nstage" id="nStage"><textarea id="nTxt" placeholder="Escreva aqui e, se quiser, desenhe por cima (modo Desenhar)..." oninput="nPag().t=this.value;salvar()"></textarea><canvas id="nCv" width="900" height="560"></canvas></div>
+  <div class="flex" style="margin-top:12px"><span><button class="btn sm" onclick="irPag(np-1)">◀</button> <select id="nSel" style="width:auto;max-width:150px;display:inline-block" onchange="irPag(+this.value)"></select> <button class="btn sm" onclick="irPag(np+1)">▶</button></span><span><button class="btn sm" onclick="addPag()">+ Página</button> <button class="btn red sm" onclick="delPag()">🗑 Página</button> <button class="btn sm" onclick="modal('mNotas',0)">Fechar</button></span></div>
+</div></div>
+<div class="modal" id="mAsk" style="z-index:80" onclick="if(event.target===this)askFim(null)"><div class="box glass"><p id="askMsg" style="margin:0 0 12px"></p><input id="askIn" onkeydown="if(event.key==='Enter')askFim(true)"><div class="flex" style="margin-top:14px;justify-content:flex-end"><button class="btn" onclick="askFim(null)">Cancelar</button><button class="btn red" id="askOk" onclick="askFim(true)">Confirmar</button></div></div></div>
+<div class="modal" id="mLivro" onclick="if(event.target===this)modal('mLivro',0)"><div class="box bkbox glass">
+  <div class="bk" id="bk"><div class="marc" id="marc"></div><div class="spread" id="spread"></div>
+   <div class="capa" id="capa"><div><div class="det">ARQUIVO CONFIDENCIAL</div><h3 id="capaT"></h3><div class="sg">👁</div></div></div></div>
+  <div class="flex" style="margin-top:12px"><button class="btn sm" onclick="vira(-1)">◀</button><select id="irPara" style="width:auto;max-width:210px" onchange="ir(+this.value)"></select><span class="det" id="pgNum"></span><button class="btn sm" onclick="modal('mLivro',0)">Fechar</button><button class="btn sm" onclick="vira(1)">▶</button></div>
+</div></div>
 
 <script>
-  // CONFIGURAÇÕES GERAIS
-  const categorias = {
-    "Perícias Essenciais": ["força", "destreza", "inteligência", "constituição", "bloqueio", "percepção"],
-    "Diplomacia": ["lábia", "persuasão", "tática", "intimidar", "adestrar"],
-    "Inteligência": ["ciências", "artes", "investigação", "análise", "medicina", "tecnologia", "religião", "sobrevivência"],
-    "Mentalidade": ["espiritismo", "terapia", "intuição", "sorte", "escutar"],
-    "Combate": ["pontaria", "atletismo"],
-    "Velocidade": ["furtividade", "pilotar", "iniciativa", "crime"]
-  };
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>"a"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const CATS=[
+ ["Perícias Essenciais",["força","destreza","inteligência","constituição","bloqueio","percepção"]],
+ ["Diplomacia",["lábia","persuasão","tática","intimidar","adestrar"]],
+ ["Inteligência",["ciências","profissão","artes","investigação","analisar","medicina","tecnologia","religião","sobrevivência"]],
+ ["Mentalidade",["espiritismo","terapia","intuição","sorte","escutar"]],
+ ["Combate",["pontaria","atletismo"]],
+ ["Velocidade",["furtividade","pilotar","iniciativa","crime"]]];
+// Tabela de Sucesso do livro: nível -> [Normal, Bom, Extremo] (0 = não existe)
+const TAB={1:[20,0,0],2:[19,20,0],3:[18,20,0],4:[17,19,0],5:[16,19,20],6:[15,18,20],7:[14,18,20],8:[13,17,20],9:[12,17,20],10:[11,16,19],11:[10,16,19],12:[9,15,19],13:[8,15,19],14:[7,14,19],15:[6,14,18],16:[5,13,18],17:[4,13,18],18:[3,12,18],19:[2,12,18],20:[2,11,17]};
+const BON={
+ Espreitador:{destreza:2,crime:1,furtividade:2,iniciativa:1},Lutador:{força:2,iniciativa:2,intimidar:1,constituição:1},
+ Inventor:{tecnologia:2,inteligência:2,sorte:1,ciências:1},"Espírita":{espiritismo:2,religião:2,intuição:1,analisar:1},
+ Sobrevivente:{sobrevivência:2,percepção:2,intuição:1,furtividade:1},"Altruísta":{terapia:2,medicina:2,lábia:1,intuição:1},
+ Mentalista:{inteligência:2,lábia:2,constituição:1,analisar:1}};
+const STATS=[["pv","VIDA (PV)","#ff4d5e"],["san","SANIDADE","#a855f7"],["pe","ESFORÇO (PE)","#3b9dff"],["cr","CRENÇA","#ff9a3d"]];
+const TEMAS={padrao:["Padrão",[255,204,0],"#0b0b0d","poeira"],visceral:["Visceral",[255,43,58],"#14060a","visc"],desespero:["Desespero",[182,108,255],"#0d0716","nevoa"],fantasmagorico:["Fantasmagórico",[46,230,192],"#041412","espirito"],escuridao:["Escuridão",[150,155,165],"#040404","lodo"]};
+const PH="data:image/svg+xml;utf8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150"><rect width="150" height="150" fill="#1b1b22"/><circle cx="75" cy="58" r="26" fill="#3a3a46"/><path d="M25 140c4-38 24-52 50-52s46 14 50 52z" fill="#3a3a46"/></svg>');
 
-  const tabela = {
-    1:{N:20}, 2:{N:19,B:20}, 3:{N:18,B:20}, 4:{N:17,B:19}, 5:{N:16,B:19,E:20}, 6:{N:15,B:18,E:20}, 7:{N:14,B:18,E:20}, 8:{N:13,B:17,E:20}, 9:{N:12,B:17,E:20}, 10:{N:11,B:16,E:19}, 11:{N:10,B:16,E:19}, 12:{N:9,B:15,E:19}, 13:{N:8,B:15,E:19}, 14:{N:7,B:14,E:19}, 15:{N:6,B:14,E:18}, 16:{N:5,B:13,E:18}, 17:{N:4,B:13,E:18}, 18:{N:3,B:12,E:18}, 19:{N:2,B:12,E:18}, 20:{N:2,B:11,E:17}
-  };
+const LIVRO={"hab":{"Lutador":[{"n":"Iniciativa Aprimorada","t":"Vantagem em rolagens de iniciativa"},{"n":"Técnica de Luta","t":"Garante vantagem para manter o inimigo imobilizado ou imobilizar o inimigo."},{"n":"Masoquismo","t":"o dano que você recebeu vira +1 de dano com limite de 5 (Dano causado apenas naquele combate)"},{"n":"Bloqueio Perfeito","t":"Ao empatar o teste de bloqueio com o adversário, você toma apenas metade do dano."},{"n":"Resistente","t":"Garante uma armadura natural, fazendo com que todo dano físico seja reduzido em 2"},{"n":"Mais que o máximo","t":"Uma Vez por cena, em um teste você pode gastar 3 PE para receber +2 no teste (exceto luta ou destreza)"},{"n":"Ataque Potente","t":"Você pode gastar 3 PE para receber +3 em um teste de luta ou pontaria ou receber +1D de Dano"},{"n":"Usar a Cabeça","t":"Quando faz um teste de facilitar a investigação, você pode gastar 2 PE para usar Força no lugar, se passar no teste (DT Bom ou Extremo) você facilita em 1 vantagem os dois próximos testes de investigação"},{"n":"Combate Retraído","t":"Quando usa a ação para atacar, você pode combater defensivamente. Se fizer isso, até seu próximo turno, sofre -5 em todos os testes de ataque, mas recebe +2 de Defesa, Bloqueio e -2 de dano"},{"n":"Corpo Saudável","t":"Pode-se gastar 2 PE para aumentar em 1d6 alguma cura recebida por rituais ou kit médico."},{"n":"Provocação Brutal","t":"Você pode gastar uma ação e 2 PE para forçar um inimigo a te atacar por 1 turno. Teste de Força vs. Constituição."},{"n":"Resistência Imparável","t":"1 vez por cena, você pode ignorar um efeito dado a você por 3 PE"},{"n":"Golpe Retumbante","t":"Se atingir com um ataque corpo a corpo, ao custo de 2 PE, o inimigo deve passar em um teste de constituição para não ficar tonto por 1 rodada."},{"n":"Guarda Quebrada","t":"Se um inimigo errar um ataque contra você em combate corpo a corpo, você pode usar sua reação para empurrá-lo 1 metro e causar 1d6 de dano. 1 PE"},{"n":"Investida Brutal","t":"Você pode avançar contra um inimigo que está até 3m de você, empurrando-o para longe em 3m e causando dano adicional se colidir com uma parede ou objeto. 1d6 de dano de impacto."},{"n":"Sede de Combate","t":"Ao eliminar um inimigo, você pode gastar 4 PE para fazer outro ataque imediato a um alvo adjacente"},{"n":"Firmeza Absoluta","t":"Se estiver com metade da vida ou menos, você recebe +2 em todos os testes de Constituição e Bloqueio."},{"n":"Intimidação Física","t":"Ameaça tão eficaz que pode forçar um alvo humanoide a recuar ou desistir de agir por 1 rodada."},{"n":"Golpe Preciso","t":"uma vez por cena,por 3 PE, pode garantir um acerto crítico em combate corpo a corpo. Tem que rodar o ataque mesmo assim."},{"n":"Proteção Instintiva","t":"pode interpor-se a um ataque destinado a um aliado próximo gastando 1 PE e sua reação."},{"n":"Cheiro de Sangue","t":"vantagem em testes contra inimigos com quaisquer condições mentais"},{"n":"Última Resistência","t":"Permite você não cair quando tomar dano massivo gastando 3 de PE"},{"n":"Paredão","t":"Ao ficar corpo a corpo com um aliado, você pode gastar 3 de PE para dar vantagem no teste de Bloqueio ou +2 de Def para esse aliado ou para outro adjacente."},{"n":"Mestre de Carga","t":"Você consegue carregar o dobro do peso normal sem sofrer penalidades de movimento e recebe vantagem em testes de Força para arrombar portas ou mover objetos pesados."},{"n":"Presença Intransponível","t":"Gastando 2 PE, você pode ocupar um espaço de 3m como se fosse uma criatura Grande por 1 rodada, impedindo que inimigos passem por você sem um teste de Atletismo."}],"Mentalista":[{"n":"Língua de Prata","t":"Sempre que utiliza quaisquer testes de diplomacia por o usuário recebe +2 no teste."},{"n":"Ganho de Informação","t":"Toda a vez que você fizer um teste de Intuição, analisar, Investigação, percepção e Persuasão você ganha +2 no teste."},{"n":"Aplicar conhecimentos","t":"Quando faz um teste, pode mudar o dado básico para a inteligência (exceto luta e pontaria)."},{"n":"Sentido Aguçado","t":"Você se torna alguém que sempre tem um palpite, você pode numa cena de investigação, planejamento ou interlúdio gastar 2 PE e uma ação para rodar um teste de Intuição/Inteligência para receber uma pista extra sobre o tema principal da conversa."},{"n":"Examinar","t":"você pode gastar 2 PE para receber vantagem e +2 em um teste de investigação ou tática."},{"n":"Facilitar","t":"você pode rodar um teste de percepção para saber um ponto de interesse e avisar para um aliado sobre este ponto. Se fizer, você concederá vantagem no teste de investigação ou análise do aliado no ponto de interesse."},{"n":"Condição Mais Forte","t":"todos os ataques que você efetuar com armas de condições adversas, são roladas com +2.\nNo caso de venenos, resistir se torna mais difícil e aumenta o desafio para se manter vivo. (Mesmo se tirar extremo, o dano permanece 1d8)."},{"n":"Estrategista","t":"gastando 2 PE e uma reação, você pode rolar tática na sua rodada para entender os movimentos do inimigo e conceder 5 de defesa para você ou um aliado."},{"n":"Armadura mental","t":"você passivamente ganha +4 em rolagens de constituição para evitar dano mental ou de crença."},{"n":"Mente Persuasiva","t":"Você pode gastar 1 PE para refazer um teste social falhado (Persuasão, Lábia, Intimidar) com desvantagem."},{"n":"Leitura Fria","t":"pode deduzir informações sobre alguém com um teste de intuição e 2 PE observando gestos e fala."},{"n":"Olhar de Especialista","t":"você conhece todas as áreas do conhecimento e passivamente ganha vantagem em Ciências, Religião, Artes e Tecnologia. Além disso, pode gastar 1 PE para ganhar um dado extra de vantagem em qualquer teste dessa árvore quando precisar de um resultado ainda melhor"},{"n":"Sussurros do Vazio","t":"pode ouvir ecos espirituais com um teste de intuição para ouvir fatos sobre o ambiente e informações gerais. Quanto maior o dado mais informações."},{"n":"Superdosagem","t":"Ao aplicar um veneno, gaste 2 PE para aumentar o dano em +1d6 e dobrar sua duração"},{"n":"Análise de Padrões","t":"Você pode gastar 4 PE para observar um inimigo por 1d4 rodadas e descobrir qual é o seu dano máximo com a arma que empunha. Durante as 1d4 rodadas, ações que envolvem foco tem desvantagem (mirar, fazer rituais e etc)"},{"n":"Intuição Aguçada","t":"Uma vez por cena, ao falhar em um teste de Investigação ou Percepção, você pode gastar 1 PE para rerrolar o dado."},{"n":"Efeito Placebo","t":"Gastando 3 PE e uma ação, você convence um aliado de que ele está bem, bloqueando condições negativas nele por 1d4+1 turnos."},{"n":"Exploração de Falha","t":"Após gastar a ação analisar um alvo por uma rodada, você pode gastar 2 PE para que seu próximo ataque (ou de um aliado) cause +1d10 de dano por atingir um ponto vital."},{"n":"Estilhaçar Vontade","t":"Ao gastar 3 PE, você ataca a mente do alvo; se ele falhar em um teste de inteligência contra sua lábia, você pode colocar quaisquer condições que você conhece nele."},{"n":"Sugestão de Falha","t":"Gastando 3 PE, você planta uma dúvida na mente do alvo; o próximo ataque que ele realizar será feito com desvantagem."},{"n":"Antídoto de Campo","t":"Você pode gastar 2 PE para remover instantaneamente qualquer efeito de envenenamento ou paralisia de si mesmo ou de um aliado adjacente."},{"n":"Estudo Balístico","t":"Gastando 3 PE, você calcula a trajetória para um aliado, permitindo que ele ignore penalidades de vento, distância ou cobertura leve em ataques à distância."},{"n":"Análise de Reação","t":"Gastando 2 PE, você prevê o movimento de defesa do alvo, garantindo que seu próximo ataque não possa sofrer desvantagem, independentemente das condições."},{"n":"Fôlego de Adrenalina","t":"Uma vez por cena, ao reduzir um inimigo a 0 PV, você recupera 1d6 de PV e ignora qualquer penalidade de movimento por 2 rodadas."},{"n":"Desvio de Trajetória","t":"Ao ser alvo de um ataque à distância, você pode gastar 5 PE para realizar um teste de Destreza; se passar, você redireciona o projétil para uma direção segura e não sofre dano. Uma vez por cena."}],"Espreitador":[{"n":"Regra do ataque furtivo","t":"Quando você acerta o ataque estando furtivo, você dobra qualquer bônus de ataque e garante vantagem no ataque."},{"n":"Fantasma","t":"Quando furtivo, você pode gastar 2 PE para se manter furtivo após um ataque."},{"n":"Espreitar Fraqueza","t":"Quando um ser sair voluntariamente de perto de você, você pode gastar sua reação e 1 PE para executar um ataque corpo a corpo contra ele."},{"n":"Ataque Ágil","t":"Você ganha proficiência em Armas Ágeis e ganha +2 em rolagens de ataque com elas."},{"n":"Flagelador","t":"Ao acertar o ataque furtivo, você causa +1d6 de dano. Quando Iluminar você pode escolher não upar PE para aumentar o dano em +1d."},{"n":"Fintar","t":"Rodar um teste de Destreza contra a Inteligência do alvo deixa ele desprevenido, garantindo vantagem no seu ataque."},{"n":"Esquiva Estratégica","t":"Se você tirar um valor menor do que o atacante, reduz metade do dano sofrido."},{"n":"Corredor","t":"Se esconder, entrar em cobertura, escalar e pular são ações livres."},{"n":"Eu sou mais rápido","t":"Em testes de iniciativa, seu dado sempre conta um nível acima: Exemplo: Desastre = Normal; Normal = Bom.\nSe tirar um extremo, você é automaticamente o primeiro no combate."},{"n":"Leveza","t":"Armas sem ponta ou ágeis se transformam em armas letais em suas mãos. Você troca o dado da reação do oponente por um dado de Percepção. 2 PE"},{"n":"Espreitar o material","t":"Testes de Crimes podem ser executados com vantagem e +3."},{"n":"Rastro Silencioso","t":"Você deixa rastros ilusórios. Rastrear seus movimentos exige um teste com penalidade de -2."},{"n":"Olhos nas Sombras","t":"Você pode gastar 2 PE para perceber criaturas ocultas simples, mesmo atrás de barreiras leves ou ilusões."},{"n":"Armadilhas Improvisadas","t":"pode criar armadilhas com materiais simples em metade do tempo que normalmente criaria."},{"n":"Múltipla Finta","t":"Depois de ter sucesso em um teste de Fintar, você pode gastar 3 PE para que seu próximo ataque (ou o ataque do seu aliado imediato, o próximo na vez) contra o alvo também receba Vantagem."},{"n":"Ponto Cego","t":"Se você atacar um inimigo que já está em combate com dois ou mais aliados, você recebe +1d6 no dano."},{"n":"Ouvido Absoluto","t":"Gastando 1 PE, você recebe vantagem em Percepção e escutar para ouvir conversas através de portas ou detectar passos a até 15 metros."},{"n":"Leitura de Lábios","t":"Você pode entender conversas à distância sem ouvir nada, desde que consiga ver claramente a boca de quem fala."},{"n":"Recuperação das Sombras","t":"Se estiver em cobertura ou furtivo no início do seu turno, você pode gastar 2 PE para recuperar 1d6 de PV."},{"n":"Recuperação Tática","t":"Em uma cena de fuga ou furtividade, você pode gastar 2 PE para ganhar 1d6 de cura como reação."},{"n":"Sombra Defensiva","t":"Enquanto estiver em cobertura, você pode gastar 4 PE para dobrar o bônus de Defesa que a cobertura fornece contra ataques à distância."},{"n":"Uso de Cobertura Dinâmica","t":"Se você estiver adjacente a um objeto grande, pode gastar 2 PE para receber Redução de Dano 2 contra qualquer ataque vindo da direção oposta."},{"n":"Permanência Sombria","t":"Ao atacar saindo de furtividade, se o ataque acertar, você pode permanecer furtivo imediatamente após o ataque, sem gastar PE"},{"n":"Sabotagem","t":"Gastando 3 PE e possuindo ferramentas, você pode danificar um dispositivo mecânico simples (como uma fechadura ou motor) para que ele falhe no próximo uso."},{"n":"Passo Leve","t":"Você ignora penalidades de movimento ao atravessar superfícies barulhentas ou instáveis, Gastando 3 PE, mantendo sua Furtividade intacta."},{"n":"Instinto Predatório","t":"Você causa +1d6 de dano contra um alvo que ainda não agiu neste combate"}],"Inventor":[{"n":"Regra da Classe","t":"Ao escolher a classe Inventor, você ganha automaticamente a habilidade caçador de sucata, porém, sem invenções. O mestre pode decidir quais você tem e definir as peças que serão gastas. Escolher ela novamente permite desbloquear as 3 invenções básicas.","nota":1},{"n":"Absorver Conhecimento","t":"Você pode rodar tecnologia ao ver um artefato para aprender a fazer algo semelhante por 2 PE."},{"n":"Deixa comigo!","t":"Itens que estão quebrados podem ser consertados por suas habilidades. Um teste de Tecnologia pode ser feito para consertá-lo e restaurar o item ao seu estado quase que padrão."},{"n":"Criativo","t":"Itens com a classificação \"Básico\" como \"Kit Médico Básico\" funcionam como \"Médio\" pra você"},{"n":"Caçador de Sucata","t":"A cada cena de investigação, você pode gastar 3 PE para focalizar sua busca em peças. Normal= 1 Ponto, Bom = 2 Pontos e Extremo = 3 Pontos\nGranada (6 Pontos): 6d6\nMira (5 Pts): quem equipar esta mira tem vantagem no próximo teste de Pontaria\nAmolador (4 Pts): Quem amolar aumenta em 1d6 o dano do próximo ataque\nCriar algo no combate é ação principal"},{"n":"Mente Criativa","t":"Você pode rolar Inteligência no lugar de Constituição em danos de crença ou Sanidade"},{"n":"Mochila de utilidades","t":"você pode carregar itens duas vezes a sua força e faz com que coisas de peso 1 fiquem 0"},{"n":"Mestre em eletrônicos","t":"você recebe +3 em um teste de tecnologia para qualquer finalidade"},{"n":"EXPLOSÕES!","t":"Você entende de explosivos e sabe as limitações. Gastando 2 PE Você pode analisar o explosivo e o entende, ganhando vantagem no teste para fugir das explosões"},{"n":"Sucata Explosiva","t":"você se mantém focado na parte explosiva das suas invenções, você pode construir granadas de fumaça, explosivas, de luz e também a modificação \"bala pesada\" (+2d6 de dano de fogo)."},{"n":"Processo Criativo","t":"Gastando 2 PE Você pode aumentar seu arsenal de invenções ao ler livros relacionados."},{"n":"Torreta Improvisada","t":"Ao gastar 4 PE você Constroi uma pequena arma estacionária que atira 1d8 de dano por 3 turnos. Custando 6 pontos."},{"n":"Armamento Reconfigurado","t":"Você pode gastar 2 PE para mudar o tipo de dano da sua arma (ex: cortar → perfurar) por 1 cena."},{"n":"Sistema de Análise","t":"Ganha +2 em testes para identificar o funcionamento de objetos, artefatos ou estruturas."},{"n":"Engenhoca de Emergência","t":"Você pode criar armas improvisadas com proficiência,caso você use, não terá desvantagens no seu uso."},{"n":"Gambiarra Defensiva","t":"cria uma barreira improvisada (tábuas, sucata, metal) que dá cobertura simples por 3 rodadas por 3 PE."},{"n":"Sobrecarga de PE","t":"Ao usar um de seus itens de invenção (Granada, Torreta, etc.), você pode gastar 3 PE adicional para que ele cause +1D de dano. (Foca na energia para Explosões )."},{"n":"Kit de Sobrevivência","t":"Você pode gastar 2 PE para transformar 1 Recurso em um item de uso único que concede +2 em um teste de perícia específico (ex: Gazua para Crimes)."},{"n":"Ajuste de Precisão","t":"Gastando 3 PE, você calibra a arma de um aliado, diminuindo o crítico do aliado em 1 até o fim da cena."},{"n":"Estação de Recarga","t":"Você pode gastar 4 PE e 4 recursos para criar um dispositivo que permite que até 3 aliados recuperem 1d4 de PE cada durante uma cena de descanso."},{"n":"Drone de Vigilância","t":"Gastando 4 PE e 5 Recursos, você cria um pequeno dispositivo voador que concede vantagem em testes de Percepção para todo o grupo na cena atual."},{"n":"Blindagem Reativa","t":"Gastando 4 PE e 5 Recursos, você instala uma placa de sucata na armadura de um aliado que reduz o próximo dano físico sofrido em 5."},{"n":"Olho Técnico","t":"Gastando 2 PE, ao desmontar algo você pode aumentar as peças que ganha em 1d4"},{"n":"Estoque Otimizado","t":"Gastando 4 PE, você organiza os suprimentos de um aliado, permitindo que ele carregue itens adicionais sem penalidade de peso pela sessão"},{"n":"Mecanismo de Potência","t":"Armas que são elétricas ou que tem modificações, ao preço de 2 PE no início da cena podem dar +1d6 de dano elétrico."},{"n":"Sobrecarga de Utilidade","t":"Gastando 3 PE, você força um de seus itens consumíveis (como um kit médico ou ferramenta) a realizar um efeito dobrado, mas o item se torna inútil após esse uso."}],"Espírita":[{"n":"Resiliente","t":"Ao Passar no teste de constituição para evitar dano de sanidade de um monstro, você não toma o dano de crença Ao usar o seu primeiro ritual"},{"n":"Idealizar os Espíritos","t":"você pode rodar um teste de Espiritismo ao lugar de investigação ou percepção, para investigar pistas paranormais ou obter informações"},{"n":"Ritual Predileto","t":"Você pode escolher o seu ritual favorito, ele custa -2 PE e diminui o dano de crença em 2 para executar. Pode mudar o ritual a cada interlúdio ou cena de descanso."},{"n":"Camuflagem Espiritual","t":"Você usa os espíritos como cosmético e pode alterar alguma característica sua. Por padrão, recebe +4 em persuasão e lábia."},{"n":"Inibir","t":"Escolha um elemento, você recebe 4 de redução de dano para esse elemento"},{"n":"Identificando o oculto","t":"gastando 2 PE Você pode usar um teste de Espiritismo para entender o que é o monstro, objetos ou símbolos espirituais"},{"n":"Mão Astral","t":"Sempre que quiser facilitar um teste, pode gastar 2 PE para rodar dois dados de facilitar ao invés de um"},{"n":"Ritual Potente","t":"Você consegue extrair o máximo do ritual, Gastando 3 PE você pode dobrar a quantidade de cura ou adicionar um bônus de +2d8 no dano de um ritual"},{"n":"Lutar por Crença","t":"Sempre que algum dos seus companheiros tomar dano de crença, você pode por 1 PE tomar metade do dano, reduzindo pela metade também o dano que seu companheiro receberia."},{"n":"Proficiente","t":"Se você amaldiçoou sua arma com algum elemento, você pode usar Espiritismo no lugar de lutar ou pontaria"},{"n":"Canalizar Energia","t":"Use PE para gerar bônus de vida ou sanidade com no máximo 10.\n1 PE = 1 de PV ou SAN"},{"n":"Selo Espiritual","t":"1 vez por missão, você pode gastar 2 PE para ficar resistente a 5 pontos de elementos, sanidade ou crença."},{"n":"Mediunidade","t":"Você consegue ver espíritos em locais. Vantagem em testes de espiritismo para o ambiente."},{"n":"Exorcismo","t":"Caso seja um espírito, você pode exorcizar ele usando testes de espiritismo para tirar o alvo de um objeto ou local. Faça testes de espiritismo contra a constituição do alvo por 1d4+1 rodadas. Caso ganhe, recupera 2 de crença por nível, caso perca perde 2 de PE por nível."},{"n":"Elo Espiritual","t":"Você pode gastar 3 PE para compartilhar sua visão com um espírito aliado, permitindo enxergar através de paredes finas por 1d4 rodadas."},{"n":"Proteção Espectral","t":"Gastando 3 PE, você cria um círculo de 3m ao seu redor que dá 4 de DR de resistência a dano elemental para aliados próximos."},{"n":"Guia das Almas","t":"Gastando 2 PE, você convoca um rastro espiritual que concede vantagem em testes de Sobrevivência para todo o grupo não se perder em locais amaldiçoados."},{"n":"Vigor Espiritual","t":"Em cenas de fuga ou correria, você gasta 2 PE para ter vantagem na cena toda em teste de agilidade e atletismo."},{"n":"Âncora Física","t":"Você gasta 2 PE para fixar um aliado ao chão espiritual, tornando-o imune a efeitos de empurrão ou de ser derrubado."},{"n":"Impacto Espiritual","t":"Gastando 2 PE, você canaliza energia para suas mãos, fazendo com que seu próximo ataque desarmado ou com arma de impacto cause +1d8 de dano físico."},{"n":"Arremesso Condutor","t":"Ao atacar a distância, você pode gastar 2 PE para guiá-la fisicamente, ignorando qualquer bônus de Defesa por cobertura leve do alvo."},{"n":"Golpe Expulsivo","t":"Ao acertar um ataque físico, gaste 3 PE para forçar o alvo a um teste de Força; se falhar, ele é empurrado 4,5m e fica Caído."},{"n":"Lâmina de Inércia","t":"Você gasta 2 PE para fazer com que a arma de um aliado ignore qualquer resistência a dano de corte ou impacto por uma cena."},{"n":"Sentir o Oculto","t":"Você recebe vantagem em testes de Percepção para localizar passagens secretas ou compartimentos escondidos por meios paranormais."},{"n":"Transe Mediúnico","t":"Você gasta 3 PE para entrar em um estado de concentração profunda por 1 rodada; na rodada seguinte, você pode usar sua perícia de Espiritismo no lugar de qualquer teste de Investigação ou Intuição."}],"Sobrevivente":[{"n":"Regra da Classe","t":"Você sabe fazer o item tático “Armadilha” por 3 PE. Aprender novas armadilhas mexem diretamente com sua classe. Armadilhas e itens que combinem com elas pesam 0 para você.","nota":1},{"n":"Sempre Alerta","t":"Em uma cena, você pode gastar 2 de PE para sentir a área. Fazendo isso, você ganha +2 em iniciativa se ocorrer o combate e pode alertar 1 personagem para dar vantagem no teste de iniciativa."},{"n":"Improvisar","t":"Você pode usar ataduras, tecidos ou panos pra curar 1d4. Em ambiente hostil, a cura aumenta para 1d6+1."},{"n":"Trilha Certa","t":"Ao achar uma pista em uma cena de investigação, você pode executar um teste seguido com +3 no atributo de \"Investigação\" para procurar uma próxima pista."},{"n":"Instinto de Sobrevivência","t":"Uma vez por cena, evite automaticamente uma armadilha ou emboscada."},{"n":"Adaptação Rápida","t":"Ganha +2 em testes de habilidades quando em ambientes hostis (floresta, ruína, deserto)."},{"n":"Autossuficiência","t":"Seus descansos ruins e curtos tem classificação normal"},{"n":"Adaptação Brutal","t":"Se você sofrer dano por uma fonte natural, ganha +1 em testes de uma árvore a sua escolha até o fim da cena."},{"n":"Reflexos de Puro Instinto","t":"Recebe +2 em Iniciativa se estiver sozinho ou à frente do grupo."},{"n":"Sobrevivente Precavido","t":"Você consegue fazer armadilhas que rastreiam e que causam uma condição que você tenha acesso."},{"n":"Instinto de Caçador","t":"Pode rastrear criaturas ou pessoas com testes de sobrevivência. Tem vantagem em ambiente hostil."},{"n":"Recuperação Rápida","t":"regenera +1d4 do atributo a sua escolha em descansos ruins/curtos"},{"n":"Sentido de Perigo","t":"Ao entrar em uma sala nova, você pode gastar 2 PE para fazer um teste de Percepção com vantagem. Se passar, o mestre deve revelar se há ameaças imediatas escondidas."},{"n":"Remendo de Campo","t":"Se um item de um aliado quebrar (exceto eletrônicos complexos), você pode gastar 2 PE para fazer um conserto temporário que dura até o fim da cena."},{"n":"Camuflagem Natural","t":"Em ambientes externos, você pode gastar 2 PE por turno que usar para dar desvantagem em tiros mirados em você."},{"n":"Proficiente em emboscadas","t":"Você tem vantagem para detectar e desarmar armadilhas mecânicas. Além disso, pode gastar 3 PE para \"reaproveitar\" uma armadilha inimiga desarmada contra eles."},{"n":"Uso Eficiente","t":"Você não recebe as desvantagens de estar com sobrecarga de peso ao lotar seus slots."},{"n":"Vontade de Viver","t":"Quando estiver com menos de 15 PV, você recebe +2 em todos os testes de Esquiva e Vantagem em testes de Constituição."},{"n":"Mortalidade Ambulante","t":"Você recebe proficiência em armas improvisadas e em armas de condições adversas. Tira a desvantagem de atacar com armas improvisadas e aumenta em +1d6 o dano com essas armas."},{"n":"Simular Morte","t":"Como uma reação ao sofrer dano, você pode gastar 3 PE para entrar em um estado catatônico; inimigos devem passar em um teste de Percepção (DT Extrema) para notar que você ainda está vivo. O alvo fica vulnerável ao seu próximo ataque."},{"n":"Armadilha de Combate","t":"Como uma ação principal e 3 PE, você prepara o chão ao seu redor; o próximo inimigo que se mover até você deve passar em Destreza ou ficará Preso e sofrerá 2d6 de dano."},{"n":"Perfeitamente Calculado","t":"Você sempre está calculando possibilidades, permitindo que você sempre ignore a primeira condição mental da cena. Além disso, em combate você pode sempre por 2 PE sempre que um inimigo sair do seu alcance diminuir a defesa dele em 2 para o próximo turno."},{"n":"Aproveitamento Total","t":"Você consegue extrair o dobro de utilidade de itens consumíveis; um kit médico de 3 usos passa a ter 6 usos em suas mãos."},{"n":"Mestre da Improvisação","t":"Gastando 2 PE, você pode usar qualquer objeto comum como se fosse uma ferramenta de perícia específica (ex: usar um prego como gazua) sem sofrer penalidades."},{"n":"Leitura de Terreno","t":"Ao iniciar um combate em ambiente natural ou urbano hostil, você identifica os melhores pontos de cobertura, concedendo +2 de Defesa para um aliado adjacente. Gaste 4 PE para isso."},{"n":"Caçada Perfeita","t":"Você ganha +1d6 de dano contra alvos rastreados."}],"Altruísta":[{"n":"Regra da Classe","t":"O modificador de altruísta se relaciona diretamente com a sua perícia de maior ligação. Sua habilidade geral característica. EX: 5 Pontos em Terapia fazem seu modificador ir para 1. 10 pontos no seu modificador faz ir para 2. 15 pontos faz ir para 3.","nota":1},{"n":"Técnicas Médicas","t":"Sempre que você curar um personagem, você pode curar +1d4 seu"},{"n":"Psicólogo Cotidiano","t":"Em cenas de interlúdio, você pode gastar sua ação e 3 PE para tratar a sanidade e a crença de um dos seus aliados podendo rodar 1d6 + seu modificador de altruísta. O segundo atributo escolhido recupera metade do que foi curado (arredondado pra cima nesse caso)."},{"n":"Sacrifício Breve","t":"Redirecione metade do dano que um aliado receberia para você (como reação). 3 PE"},{"n":"Luz Restauradora","t":"Gaste sua ação para remover uma condição (ex: medo, cego, sangrando) de um aliado. Custa 3 PE"},{"n":"Vontade Inquebrável","t":"Quando um aliado falha em um teste de Sanidade, você pode inspirá-lo a rerrolar, gastando 1 PE."},{"n":"Inspiração Contagiante","t":"Quando você recupera de fontes artificiais (Kits e Medicamentos), aliados adjacentes recuperam 2 pontos de PE também (uma vez por rodada)."},{"n":"Palavras de Consolo","t":"restaura o dobro do que restauraria da sanidade de um companheiro com um teste de Terapia."},{"n":"Luz No Fim do Túnel","t":"Gastando 2 PE você pode escolher um aliado para receber 1d6 temporário de algum atributo. Dura a Cena."},{"n":"Aura Protetora","t":"No início de um combate, você proclama um aliado próximo que ganha vantagem contra a perda de sanidade."},{"n":"Motivação","t":"Caso um aliado esteja com pontos de vida zerados, o jogador pode gastar sua ação principal para fazer um discurso e motivar ele a continuar vivo, garantindo que ele não falhe no próximo teste de Constituição."},{"n":"Luz da Esperança","t":"uma vez por sessão, você pode gastar 3 PE para recuperar o igual a um descanso ruim."},{"n":"Autoproteção","t":"Aumenta o dado das armas de fogo em uma categoria. Caso já esteja no máximo (1d12). Você ganha 2 de Perfuração na arma."},{"n":"Chama da Justiça","t":"4 PE + Reação para após um aliado adjacente sofrer dano você pode fazer um ataque imediato causando +1D de dano."},{"n":"Urgência e Emergência","t":"Ao preço de 4 PE, sua cura de fontes artificiais tem o valor maximizado"},{"n":"Voz do Comando","t":"Gastando 3 PE e uma ação, você permite que um aliado realize imediatamente uma ação de movimento ou um ataque simples fora do turno dele. Ele age no seu lugar."},{"n":"Sincronia de Grupo","t":"Gastando 4 PE, você e todos os aliados adjacentes recebem +1 em todos os testes de perícia por 3 rodadas."},{"n":"Reação em Cadeia","t":"Sempre que um aliado acertar um crítico, você pode gastar 2 PE para realizar um movimento extra ou trocar de arma imediatamente."},{"n":"Golpe da Redenção","t":"Se você atacar um inimigo que causou dano a um aliado na rodada anterior, você pode gastar 3 PE para causar +2d6 de dano adicional."},{"n":"Impacto da Esperança","t":"Gastando 4 PE, após um aliado ser atacado, você no seu ataque pode ignorar as armaduras do inimigo."},{"n":"Recuperação em Grupo","t":"Uma vez por sessão, você pode gastar 5 PE para fazer com que todos os aliados em alcance curto recuperem 2 PE cada"},{"n":"Sacrifício de Energia","t":"Você pode escolher perder 1d6 de Sanidade para restaurar a mesma quantidade em PE ou Crença para um companheiro."},{"n":"Sincronismo","t":"Você marca um aliado, o primeiro dano que ele levar é transferido pra você, reduza o seu modificador"},{"n":"Incentivo Vital","t":"Como uma ação bônus, você gasta 2 PE para conceder 1d10 de PV + modificador temporários a um aliado que possa te ouvir."},{"n":"Presença Confortante","t":"Durante um descanso curto, você gasta 10 PE para garantir que todos os aliados recuperem o valor máximo dos dados de cura em 2 atributos escolhido por você"},{"n":"Transferência de Vigor","t":"Você gasta 3 PE para permitir que um aliado realize um teste de resistência que ele acabou de falhar, com vantagem."}],"Multiclasse":[{"n":"Vingança","t":"Depois de tomar um acerto crítico você pode gastar 4 PE e uma ação completa para revidar o ataque com sua arma e empurrar o inimigo para 3 metros, se bater em uma parede é +1d6"},{"n":"Expertise","t":"Pode rolar um dado novamente pelo preço de 2 PE"},{"n":"A Melhor defesa é o ataque","t":"No Começo de uma cena de ação, você pode usar 2 PE pra ganhar mais uma ação adicional"},{"n":"Mira de Elite","t":"Gastando 2 PE, seu usuário pode mirar e atirar no mesmo turno, causando mais 1 dado de dano."},{"n":"Atirador de Elite","t":"Quando o usuário mira ele tem mais um dano de dano se tirar crítico."},{"n":"Retomar o Fôlego","t":"Uma vez por cena, você pode gastar 2 PE para recuperar 1d4 de vida ou 1d4 de Sanidade."},{"n":"Reação Instintiva","t":"Ao ser atacado pela primeira vez, você pode gastar 1 PE para rolar um teste de Destreza ou Constituição. Se passar (DT igual ao ataque), reduz o dano pela metade."},{"n":"Expansão de Conhecimento","t":"Caso você escolha não upar PE quando iluminar você pode escolher uma habilidade de qualquer classe ao invés da sua."},{"n":"Proficiência Aleatória","t":"Você ganha proficiência em armas improvisadas e escolhe uma categoria de arma para ter proficiência também."},{"n":"Aplicação Rápida","t":"Gaste 1 PE para aplicar veneno em uma arma como ação livre."},{"n":"Combater com Duas Armas","t":"Se estiver usando duas armas (e pelo menos uma delas não é complexa), você pode rodar o ataque para ambas as armas, ou seja, dois ataques. Um com cada arma, se optar por fazer isso, o segundo ataque tem desvantagem no teste. O alvo não pode escolher contra atacar o segundo ataque.\nPré-Requisito: Força ou Destreza 16"},{"n":"Punhos Cerrados","t":"Seus ataques desarmados causam 1d6 pontos de dano ao invés de 1d4, eles contam como armas ágeis. A cada iluminação você pode ao preço de não upar PE aumentar para 1d8, 1d10 até 1d12 de dano."},{"n":"Resistência Adaptativa","t":"(Pré-requisito: Espiritismo 16). Sempre que sofrer dano de um elemento específico (como Desespero), você pode gastar 2 PE para ganhar resistência 5 contra esse elemento até o fim da cena."},{"n":"Veneno Rápido","t":"Você aprende a criar venenos simples. Gastando 2 PE, seu próximo ataque causa a condição \"Envenenado\" (1d4 de dano por turno) por 3 rodadas."},{"n":"Resiliência Mental","t":"Gastando 2 PE, você pode usar seu atributo de maior valor para resistir a um efeito de medo ou pânico."},{"n":"Vigor Renovado","t":"Ao final de um combate, se você não caiu, recupera 2 PE automaticamente."},{"n":"Fôlego de Combate","t":"Ao eliminar um inimigo, você recupera 1d4 de PV ou PE (você escolhe) sem custo adicional."},{"n":"Sincronia Tática","t":"Quando você usa a ação \"Ajudar\", o aliado recebe +1d4 para somar ao teste além da vantagem, ao custo de 2 PE."},{"n":"Resiliência Híbrida","t":"Gastando 3 PE, você escolhe uma condição negativa que está sofrendo e reduz a duração dela em 1 rodada."},{"n":"Troca de Postura","t":"Você pode gastar 2 PE para reposicionar e ficar adjacente ao alvo em alcance médio. 4 PE para ficar longo."},{"n":"Adaptação de Combate","t":"Uma vez por cena, ao errar um ataque, você pode gastar 2 PE para realizar um movimento extra ou trocar seu equipamento sem gastar ações."},{"n":"Equilíbrio de Funções","t":"Se você não usou nenhuma habilidade de classe na rodada anterior, sua próxima habilidade custa 1 PE a menos (máximo 2)."},{"n":"Sincronia Energética","t":"Sempre que você recuperar PE através de um descanso ou habilidade, você pode escolher um aliado para recuperar 1d4 PE também, sem custo adicional."},{"n":"Adaptação de Fluxo","t":"Sempre que você utilizar uma habilidade de uma classe que consome 3 PE ou mais, a próxima habilidade que você usar terá seu custo reduzido em 1 PE (mínimo 1) até o fim do seu próximo turno."},{"n":"Prontidão Tática","t":"Uma vez por cena, você pode trocar sua Reação já usada por uma nova, recuperando-a por 3 PE."}]},"rit":[{"n":"Regras dos Rituais","t":"Rituais são a expressão dos espíritos, paranormal e tudo que é impossível.\nQuando Iluminar você pode escolher não upar sua crença e pegar um ritual a sua escolha.\nTal regra muda quando:\n1.  Um espírita Ilumina, caso escolha um ritual, você apenas evolui 1d8 de crença ao invés de 2d8.\n2.  Iluminar com um item que possui ritual. Quando isso ocorrer, você não recupera 100% do atributo de crença ao preço de aprendê-lo.\n3.  Escolher um ritual de um elemento/força regente que você possui emparelhamento.","nota":1},{"n":"Absorção Espiritual","c":{"Execução":"Padrão","Alcance":"Pessoal","Alvo":"Você","Duração":"Cena","Custo":"4 PE | 1d6+3 de Crença"},"t":"Os Espíritos ao seu redor doam um pouco de sua força para o conjurador recebendo +15 de PV.\nExtra (+1 PE): Pode usar como reação\nDiscente (+3 PE) Pode ao toque passar esse PV com um bônus de +1d8 para um aliado"},{"n":"Amaldiçoar com Elemento","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 arma","Duração":"Cena","Custo":"3 PE | 1d6+2 de Crença"},"t":"A arma fica com manchas variando a cor de acordo com o elemento e exalar uma ar de mistério passando a causar +2d6 do elemento escolhido\nDiscente(+3 PE): causa 3d6 + diminui o crítico da arma em 1\nVerdadeiro: (+5) passa todo o dano para o elemento escolhido","m":1},{"n":"Anular o Eminente","c":{"Execução":"Reação","Alcance":"Pessoal","Alvo":"Você","Duração":"Na rodada","Custo":"3 PE | 1d6+1 de Crença"},"t":"Ao levar um ataque, você pode usar a reação para usar este ritual. Você pode adiar o dano levado para a próxima rodada. Uma vez que use o ritual novamente,seguido, o custo aumenta em +2 de crença"},{"n":"Aprimorar Sangue","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 arma","Duração":"Cena","Custo":"3 PE | 1d4+2 de Crença"},"t":"A arma fica com manchas de sangue e exalar uma arma sanguinária passando a causar +3d4 de Visceral\nDiscente(+3 PE): causa +1d4 e da 1d6 de sangramento","m":1},{"n":"Ataque da Incerteza","c":{"Execução":"Padrão","Alvo":"você","Alcance":"pessoal","Duração":"1 Turno","Custo":"4 PE | 1d8+2 de Crença"},"t":"Ao usar a ação de atacar (corpo a corpo) após ativar esse ritual, você roda 1d4 para decidir qual destes efeitos seu atacar terá:\n1- seu número de crítico diminui 2\n2- +1 de multiplicador de crítico\n3- pode atacar uma segunda vez se tirar extremo\n4- da +2d8 de dano fantasmagórico"},{"n":"Coincidir Caminhos","c":{"Execução":"Padrão","Alvo":"1 ser","Alcance":"curto","Duração":"cena","Custo":"4 PE | 1d6+2 de Crença"},"t":"Você manipula os espíritos da sorte para deixar 1 ser com o caminho do escolhido, concede a este +2 em habilidades gerais\nDiscente (+4 PE): muda o alcance para \"Aliados\"","m":1},{"n":"Couraça da Exasperação","c":{"Execução":"Padrão","Alvo":"Você","Duração":"Cena","Custo":"5 PE | 2d4+3 de Crença"},"t":"Você força seu desespero a assumir a forma física e crescer como se fosse uma armadura. Toda vez que um dano físico (impacto, corte e balístico) Você pode gastar a sua reação para curar 2d6+2 de PV"},{"n":"Desenganado","c":{"Execução":"Padrão","Alcance":"Curto","Alvo":"Criatura Escolhida","Duração":"Sustentada","Resistência":"Constituição","Custo":"4 PE | 1d4+2 de Crença"},"t":"Você manifesta pequenas mãos de espíritos próximos no corpo do alvo, que tem dificuldade em seus movimentos, tendo dificuldade em seus movimentos e em acertar ataques -2 pontos em força e destreza.","m":1},{"n":"Dilacerar Carne","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"Arma Pesada de Ponta","Custo":"3 PE | 1d6+2 de Crença"},"t":"Você canaliza sua raiva interna em seus ataques, mesmo quando um ataque não acertam em cheio, ele machuca muito. Para todo resultado 1 em dados de dano com a arma, você recebe 1d6 de dano visceral adicional\nDiscente (+3 PE) todo o resultado 1 e 2 conta","m":1},{"n":"Esfera do Contrário","c":{"Execução":"Padrão","Alcance":"Curto","Duração":"Instantânea","Custo":"6 PE | 1d8+2 de Crença"},"t":"Você cria um orbe de sentimentos negativos e ruins de sua afinidade com desespero, que se manifesta em uma esfera roxa que pulsa e reprimi a positividade do conjurador.\nLançar o Orbe: O jogador pode lançar o orbe causando 3d8 de dano\nBom no teste de constituição da metade dano.\nDoar Orbe: Pode dar o orbe para outro jogador que pode lançar ele causando 4d8.\nO orbe pode ser lançado em até 2 rodadas, se não for vai explodir e curar 1d6 do conjurador ou de algum ser do elemento desespero"},{"n":"Ferver Sangue","c":{"Execução":"padrão","Alcance":"Curto","Alvo":"Uma criatura","Duração":"Sustentação","Resistência":"Preparação","Custo":"5 PE | 1d4+2 de Crença"},"t":"O Sangue do alvo aquece rapidamente até entrar em ebulição. Quando o ritual é conjurado o alvo deve fazer um teste de preparação e se falhar toma 3d8 de dano de visceral e fica fraco; se passar, sofre metade do dano e não fica fraco. Se o alvo passar dois testes seguidos o efeito acaba."},{"n":"Flanco Obscuro","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 Ser","Duração":"Instantânea","Resistência":"Constituição reduz Metade","Custo":"3 PE | 1d6+2 de Crença"},"t":"Você se aproveita das costas sem defesa dos alvos para chamar uma sombra vinda da escuridão para desferir um golpe com toda a violência do elemento escuridão. O Alvo recebe 3d6+2 de dano de Escuridão e recebe a condição fraco por 1d3 rodadas\nDiscente(+6 PE): muda o dano para 6d6+4 e causa 1d6 de rodadas em fraqueza"},{"n":"Físico Aprimorado","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1","Duração":"Cena","Custo":"3 PE | 1d4+1 de Crença"},"t":"O Alvo Tem seus músculos preparados e ligamentos reforçados, recebendo vantagem em destreza, força, atletismo à sua escolha\nObscuro (+3 PE): em vez do normal o alvo recebe além da vantagem +1 ponto no atributo escolhido\n(1) GRITOS:\nDuração: 1 turno\nAlcance: 1 alvo\nResistência: Preparação\nCusto: 4 PE | 1d4+2 de Crença\nVocê pode fazer a vítima começar a ouvir gritos altíssimos de dezenas de pessoas bem no fundo de suas orelhas e deixar o alvo desesperado.\n2d8 de Desespero e Desvantagem em qualquer teste que ele tentar fazer por 1d4 rodadas."},{"n":"Hemorragia","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 Criatura","Duração":"Na Hora","Resistência":"Preparação reduz metade","Custo":"5 PE | 1d6+4 de Crença"},"t":"Você faz com que o sangue do alvo seja arrancado do seu corpo através de sua pele, causando 3d6 de Visceral. Você absorve esse sangue recuperando seus pontos de vida iguais a metade do dano causado\nObscuro (+2 PE): Cura outra pessoa com esse efeito ao toque e aumenta para 5d6\nTotal(+6 PE) tira a resistência para nenhuma e pode atacar com uma arma para executar o ritual, Se acertar causa o dano do ataque e do ritual, recuperando os pontos de vida em quatidade igual à metade do dano total causado."},{"n":"Impulso Espiritual","c":{"Execução":"Padrão","Alcance":"Pessoal","Alvo":"Você","Duração":"Cena","Custo":"3 PE | 1d6+2 de Crença"},"t":"Você melhora a sua agilidade para algo paranormal, permitindo que ande e corra mais rápido, ganhando +3 em testes de Agilidade e Atletismo e podendo fazer manobras como ação livre","m":1},{"n":"Inferir passado","c":{"Execução":"Padrão","Alvo":"1 ser","Alcance":"Curto","Duração":"batalha","Custo":"4 PE | 1d10 de Crença"},"t":"Ao tocar no alvo que você quer, você manipula o tempo dele atrasando suas ações. Mecanicamente, ele joga 1 turno atrasado e fica lento por uma rodada.\nDiscente (+2 PE) Muda para 2 turnos"},{"n":"Intenção Mascarada","c":{"Execução":"Padrão","Alvo":"2 objetos","Alcance":"Toque","Duração":"Descarregar","Custo":"5 PE | 1d6+3 de Crença"},"t":"Você marca dois itens com um símbolo a seu gosto. Ao segurar um desses itens e Descarregar esse símbolo, você fica carregado de incertezas, fazendo com que quem esteja tentando te atacar fiquem confusos. Você recebe +4 de defesa e 4 de bloqueio e os alvos tem que rodar Espiritismo para poder te atacar, tem desvantagem no dado."},{"n":"Mental","c":{"Execução":"Padrão","Alcance":"Curto","Alvo":"Um","Duração":"Instantânea","Resistência":"Constituição","Custo":"4 PE | 1d6+2 de Crença"},"t":"Você Manifesta e dispara uma onda quase invisível aos olhos que entra no alvo e que ao entrar em contato com o alvo dá 3d6 de fantasmagórico e deixa a pessoa vulnerável no próximo turno. Se o inimigo passar no teste de constituição, sofre apenas metade do dano e evitar a vulnerabilidade, se usado em um monstro que tem fraqueza a fantasmagórico dá +1d\nDiscente (+4 PE): Muda o Alvo para dois e que dá 4d6+6 de dano fantasmagórico nas duas criaturas","m":1},{"n":"Nutrição Espiritual","c":{"Execução":"Padrão","Alcance":"Curto","Alvo":"Seres Escolhidos","Duração":"Instantânea","Custo":"6 PE | 1d8+4 de Crença"},"t":"Você Cria 3 Fagulhas juntando a força dos espíritos ao redor que complementam e fecham as feridas do corpo do alvo, cada fagulha recupera, individualmente, 1d6+1 de PV do alvo, você pode distribuir como quiser entre os seres dentro do alcance\nDiscente (+3 PE): Aumenta para 6 pessoas e a recuperação para 1d8+1"},{"n":"Junção Mental","c":{"Execução":"Padrão","Alcance":"Toque","Duração":"Cena","Custo":"2 PE | 1d4+2 de Crença"},"t":"Você precisa desenhar 2 símbolos, um para quem irá realizar o ritual e outro para o alvo e marcar ele, após isso haverá uma Junção de mentes onde o que o outro quiser falar, pode falar \"telepaticamente\" com o outro\nDiscente: (+3 PE): Pode colocar até 5 pessoas na ligação mental","m":1},{"n":"Nuvem de Sombras","c":{"Execução":"Padrão","Efeito":"uma pequena neblina/nuvem que é criada tendo 4 metros de altura e 5 metros de raio","Duração":"Cena","Custo":": 4 PE | 1d6+2 de Crença"},"t":"Uma Nuvem de pura escuridão, imitando fuligem escurecendo ainda mais a visão, seres em 1,5m tem camuflagem parcial (+3 no teste de furtividade) e em 3m tem Camuflagem total (+6 no teste de furtividade)\nDiscente(+3 PE): Você pode escolher quem enxerga através do ritual\nVerdadeiro:??","m":1},{"n":"Reescrever a Vida","c":{"Execução":"Padrão","Alcance":"Toque","Duração":"Instantânea","Custo":"5 PE | 1d8+3 de Crença"},"t":"Você chama os espíritos bondosos ao redor de você para curar uma ferida de um companheiro, você cura 2d8+2 de PV mas toma metade desse valor em dano de Sanidade\nDiscente (+4 PE): Aumenta para 4d8+5 a Cura","m":1},{"n":"Aprisionar Espíritos","c":{"Custo":"4 PE | 1d6+2 de Crença","Execução":"Padrão","Alvo":"Estrutura","Duração":"Instantânea"},"t":"Você suga os Espíritos da localidade que você focar, fazendo um símbolo na porta do local e aprisionando os Espíritos durante aquela cena para evitar ataques. Caso haja espíritos malignos na localidade você consegue se apossar de metade da vida desses espíritos ganhando PV temporário.","m":1},{"n":"Repulsora Elemental","c":{"Execução":"Padrão","Alvo":"Toque","Duração":"Cena","Custo":"3 PE | 1d6+2 de Crença"},"t":"Você pode focar em aniquilar 1 único elemento, fazendo com que a sua arma cause +3d8 de dano ao elemento contrário ao escolhido"},{"n":"Cicatrizar","c":{"Execução":"Padrão","Alvo":"Toque","Duração":"instantânea","Custo":"6 PE | 1d8+3 de Crença"},"t":"Você pode produzir sombra em cima da ferida e com isso usar do que se esconde na escuridão para curar 2d8+2 da pessoa, a Cicatriz ou a ferida é fechada por raízes negras.","m":1},{"n":"Arrancar Pele","c":{"Execução":"Padrão","Alvo":"Um ser","Duração":"Instantânea","Resistência":"Constituição","Custo":"5 PE | 1d6+3 de Crença"},"t":"Um alvo que já foi atacado fica vulnerável a esse ritual. Você utiliza da sua fome de violência para arrancar a pele do alvo causando 2d8+2 de dano visceral, constituição bom reduz metade . O alvo perde a pele de onde você mirou e caso tire fracasso no teste fica com hemorragia (1d10 de dano de sangramento até tirar 2 sucessos em constituição)","m":1},{"n":"Ruir na Escuridão","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 Ser","Duração":"Instantânea","Resistência":"Constituição reduz metade","Custo":"4 PE | 1d6+3 de Crença"},"t":"Você se concentra usando sua ação de movimento para chamar os espíritos da Escuridão para degradarem o alvo causando 2d8+4 de Escuridão\nDiscente(+5 PE): Muda a Resistência para \"Nenhuma\" e o dano para 3d8+6. Como parte da execução, você transfere os espíritos para a sua arma e faz um ataque corpo a corpo com a arma. Se acertar, causa o dano da arma e do ritual, somados","m":1},{"n":"Sangramento Aprimorado","c":{"Execução":"Padrão","Alvo":"Sua Arma ou de um aliado","Duração":"Cena","Custo":"4 PE | 1d6+2 de Crença"},"t":"Você crava seu sangue na sua lâmina fazendo o efeito de Sangramento aumentar ou surgir na lâmina. Esta, fica mais afiada e com camadas vermelhas causando mais dano do que deveria. Mecanicamente, para cada turno atacado com esta lâmina, o Sangramento aumenta em 1d2","m":1},{"n":"Selvageria Escura","c":{"Execução":"Padrão","Alvo":"Inimigo","Alcance":"Médio","Duração":"Na hora","Custo":"5 PE | 1d8+3 de Crença"},"t":"Você invoca os espíritos selvagens do abismo da escuridão para desferir um ataque em partes vitais do alvo, os espíritos causa 3d8+4 de dano e deixam o alvo com uma aura Escura que permite que ele não se camufle ou fique furtivo durante 3 turnos"},{"n":"Substituição Astral","c":{"Execução":"Movimento","Alcance":"Médio","Alvo":"você e 1 pessoa","Duração":"Instantânea","Custo":"3 PE | 1d8 de Crença"},"t":"Você atira um feixe de energia com a ponta dos dedos e faz com que você troque de lugar com a primeira pessoa que esse feixe tocar. Caso haja um objeto entre ou o espaço seja pouco entre o alvo, o ritual é dissipado.\nDiscente (+3 PE): muda o alvo para \"Você e um ser\"","m":1},{"n":"Total Escuridão","c":{"Execução":"Padrão","Alvo":"Criatura Escolhida","Alcance":"Alvo","Duração":"Cena","Custo":"4 PE | 1d6+2 de Crença"},"t":"Você manifesta totalmente a escuridão e a manda consumir um alvo com a finalidade de o confundir, dificultando seus movimentos e ações em -2 em rolagens de ataque e -2 de dano. O Alvo deve rolar constituição para evitar o efeito. DT BOM\nDiscente (+3): Aumenta a DT para Extremo e +1 em cada penalidade","m":1},{"n":"Doar Escuridão","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"Acessório, arma de fogo ou vestimenta","Duração":"Cena","Custo":"3 PE | 4 fixo de Crença"},"t":"Você concede um pouco da escuridão dentro de você sacrificando 4 de crença e 1 ponto de vida para fazer um acessório; vestimenta ou arma funcionar de uma maneira diferente. Fornecendo +2 em testes normais que se amaldiçoa uma vestimenta e em uma arma +2 em testes de ataque\nObscuro (+4 PE): O bônus aumenta em +2\n(1)Prender no Tempo:\nDuração: 2 Turnos\nAlcance: 1 alvo\nResistência: Constituição\nCusto: 6 PE | 1d6+2 de Crença\nTocando no alvo e marcando o alvo com algo (Tinta, sangue, etc), você pode tirar a reação do alvo por 2 turnos (Esquiva, Bloquear ou contra-atacar). Caso o alvo tire bom ou extremo, ele fica apenas um turno sem reação"},{"n":"Língua dos Mortos","c":{"Execução":"Ritualístico (5 minutos)","Alcance":"Toque (cadáver ou item do falecido)","Duração":"1 minuto","Custo":"2 PE | 1d6+2 de Crença"},"t":"Você pode fazer até 3 perguntas para um espírito preso a um corpo ou objeto. As respostas são curtas e limitadas pela lucidez do espírito. O mestre pode impor consequências se o ritual for abusado, como atrair espíritos hostis."},{"n":"Revelação Sombria","c":{"Execução":"Instantânea","Alcance":"10 metros","Duração":"Cena","Custo":"2 PE | 1d6+2 de Crença"},"t":"Você revela tudo que foi escondido magicamente, incluindo ilusão, camuflagem sobrenatural ou pistas ocultas. Teste de Percepção com vantagem para rastrear pistas no local por 1 cena.","m":1},{"n":"Rastro de Sangue","c":{"Execução":"Padrão","Alcance":"Curto","Duração":"Sustesntação","Custo":"2 PE| 1d6+2 de Crença"},"t":"Permite seguir um rastro físico (sangue, pegadas, impressões) mesmo que esteja invisível ou tenha sido parcialmente apagado. Você vê o caminho por onde a vítima ou criatura passou até perder o vínculo espiritual.","m":1},{"n":"Máscara do Outro","c":{"Execução":"Padrão","Alvo":"Você","Duração":"Cena","Custo":"4 PE | 1d6+2 de Crença"},"t":"Você assume temporariamente o comportamento, sotaque ou memória superficial de uma pessoa investigada. Requer um item pessoal da pessoa como foco. Pode enganar familiares ou passar por alguém durante um curto período.","m":1},{"n":"Marcar a Presença","c":{"Execução":"Instantânea","Alvo":"Criatura viva ou espírito","Duração":"1 cena","Custo":"2 PE | 1d6 de Crença"},"t":"Ao tocar um ser, você o \"marca\" com um selo invisível. Por 1 cena, pode rastreá-lo à distância com precisão sobrenatural. Além de saber quando for tocado e moldado espiritualmente."},{"n":"Análise Espiritual Forense","c":{"Execução":"Padrão","Alcance":"Toque (cadáver ou vestígio)","Custo":"1 PE | 1d4+1 de Crença","Efeito":""},"t":"Você realiza uma análise detalhada de um corpo ou marca paranormal.\nRevela:\nCausa da morte ou efeito mágico\nElemento ou entidade envolvida\nSe houve resistência espiritual","m":1},{"n":"Foco de Energias","c":{"Execução":"Rápida","Alvo":"Objeto investigado","Custo":"2 PE | 1d4+2 de Crença","Efeito":""},"t":"Durante 1 teste de Investigação ou Tecnologia com o objeto, você ganha +2 de bônus.\nSe for um objeto espiritual ou amaldiçoado pela cena, você sente uma resistência etérea que pode gerar efeitos colaterais se falhar.","m":1},{"n":"Pacto com o Sangue Perdido","c":{"Execução":"Ritualístico","Alvo":"Traço de sangue","Custo":"1d8 de Crença + 1 de Vida"},"t":"Teste: Espiritismo ou Sobrevivência\nEfeito: 3 PE | 1d8 de Crença (+1 PV)\nVocê cria um vínculo sensorial com a pessoa que derramou o sangue. Por 1 cena, você compartilha visões rápidas, sentimentos ou estímulos sensoriais que ela está sentindo. Pode ser usado para rastreamento ou para entender se ela está viva.","m":1},{"n":"Degredo Etéreo","c":{"Execução":"padrão","Alvo":"criatura até médio alcance","Duração":"2 rodadas","Custo":"3 PE | 1d8+2 de Crença"},"t":"Você tenta exilar o alvo para uma zona entre realidades. O alvo faz um teste de resistência (DT BOM). Se falhar, ele desaparece por 1 rodada, retornando confuso (ações com -2). Se passar, sofre 2d8+2 de dano fantasmagórico"},{"n":"Lacre Sombrio","c":{"Execução":"padrão","Alvo":"uma porta, baú ou entrada","Duração":"até ser quebrado","Custo":"3 PE | 1d4+2 de Crença"},"t":"Você conjura uma barreira invisível com selos espectrais que impede a abertura de uma entrada física. A entrada só pode ser aberta com um teste de crime ou espiritismo (DT EXTREMO) ou ao desfazer o ritual. Qualquer tentativa de forçar fisicamente sofre -3.","m":1},{"n":"Tela de Ruído","c":{"Execução":"Padrão","Alvo":"Estrutura","Duração":"Até ser quebrado","Custo":"2 PE | 1d8 de Crença"},"t":"Ao se concentrar em uma estrutura e focalizar sua energia espiritual nesta, você cria uma tela que protege os sons, isto é, que tá de fora não consegue escutar o que estão falando lá dentro, somente vendo as coisas. Quem entrar, o indivíduo que fez o ritual é alertado mas sem saber maiores dados."},{"n":"Ação Desesperada","c":{"Execução":"Padrão","Alcance":"Curto","Alvo":"1 Ser","Custo":"5 PE | 1d8+4 de Crença"},"t":"Você concentra toda a energia dos sentimentos em se movimentar mais rápido. Você ganha mais uma ação de movimento por turno.\nDiscente (+5): Você troca por uma ação principal, esta não pode ser usada para conjurar ritual."},{"n":"Desesperar Incógnita","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 Criatura","Duração":"Na Hora","Resistência":"Preparação reduz metade","Custo":"4 PE | 1d8+3 de Crença"},"t":"Você faz com que toda a negatividade do alvo seja maximizada e sua existência vire puro desespero, causando 3d6 de Desespero.\nObscuro (+3 PE): Recebe vida temporária = metade do dano causado\nTotal(+7 PE) tira a resistência para nenhuma e pode atacar com uma arma para executar o ritual, Se acertar causa o dano do ataque e do ritual podendo curar crença = metade do dano"},{"n":"Imbuir Facilidade","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"Acessório ou Arma","Duração":"Cena","Custo":"3 PE | 1d6+2 de Crença"},"t":"Você pode colocar o item para funcionar de maneira mais eficaz do modo que achar melhor. Pode colocar uma modificação a sua escolha\nDiscente (+2 PE): Muda para duas modificações","m":1},{"n":"Proliferar Negatividade","c":{"Execução":"Padrão","Alcance":"Curto","Alvo":"1 Ser","Resistência":"Constituição Parcial","Custo":"4 PE | 1d6+2 de Crença"},"t":"Você lança uma nuvem de negatividade que deixa o alvo fatigado. Se passar no teste só fica vulnerável.\nDiscente (+2 PE): O alvo fica exausto e se passar fica fatigado\nVerdadeiro (+6 PE): Como discente e muda o alvo para até 4 seres - Requer Emparelhamento com Desespero -","m":1},{"n":"Atrapalhar Visualização","c":{"Execução":"Padrão","Alcance":"Pessoal","Duração":"Cena","Custo":"4 PE | 1d6+3 de Crença"},"t":"Você cria 3 cópias ilusórias suas, essas cópias são extremamente realistas. As cópias ficam ao seu redor e imitam suas ações. Você recebe +6 de Defesa. Cada vez que erram um ataque contra você uma imagem desaparece e você perde 2 de defesa.\nDiscente(+3 PE): Aumenta o número de cópias para 5, concedendo 10 de DEF.","m":1},{"n":"Gritos Fantasma","c":{"Execução":"Padrão","Alcance":"Curto","Alvo":"1 Ser","Resistência":"Constituição metade","Custo":"4 PE | 1d6+3 de Crença","Efeito":""},"t":"Você vocaliza todas as falas dos espíritos ao seu redor, transformando sua boca numa ferramenta de maldição e feitiço. As falas infectam o seu alvo, causando 4d4+4 de dano fantasmagórico e deixa o alvo ofuscado por uma rodada. Se passar no teste, evita a condição e toma metade do dano.\nDiscente(+3 PE): Muda o alvo para “cone” e aumenta o dano para 6d4+4 e ao invés de ofuscado, o alvo fica cego por uma rodada.\nVerdadeiro(+6 PE): Muda o alvo para “seres escolhidos”, os sons saem diretamente na mente do alvo, aumentando o dano para 10d4+4"},{"n":"Mimese Sombria","c":{"Execução":"Padrão","Alcance":"Pessoal","Alvo":"Você","Duração":"Sustentado (Teste de Espiritismo DT BOM)","Custo":"5 PE | 1d8+3 de Crença","Efeito":""},"t":"Você consegue mimetizar por um período todas as incongruências e falhas da escuridão, seu corpo vira quase que uma união com as sombras presentes no universo. Você recebe as condições de estar em uma cobertura parcial e ignora metade de todos os danos que são de fontes físicas.\nDiscente(+2 PE): Muda a execução para reação, a duração para instantânea. Tais sombras possuem seu corpo tão rápido que você consegue absorver na sua sombra metade do dano que seria causado a você"},{"n":"Visceralizar Outrem","c":{"Execução":"Padrão","Alcance":"curto","Alvo":"1 Ser","Duração":"Instantânea","Resistência":"Constituição Metade","Custo":"6 PE | 1d6+3 de Crença","Efeito":""},"t":"Você coagula uma mistura de líquidos que se tornam vermelho e grotesco. Esse líquido mancha a pele do alvo e causa 4d6 de dano de sangue (constituição metade). Caso o ser não resista, você pode escolher uma perícia essencial para que ele tenha desvantagem pelo resto da cena."},{"n":"Sangria Animal","c":{"Execução":"Padrão","Alcance":"Pessoal","Alvo":"Você","Duração":"Cena","Custo":"5 PE | 1d8+3 de Crença","Efeito":""},"t":"Você desenvolve presas bestiais, que cobrem e reforçam sua arcada dentária. Sua mordida além do 1d6, dá 2d8 e 1d8 de dano visceral.\nDiscente(+4 PE): Os danos mudam para 2d10 + 1d10, o alvo deve realizar um teste de constituição (DT BOM), se falhar fica sangrando"},{"n":"Mitose Energética","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"Você","Duração":"1d6+2 turnos","Custo":"5 PE | 1d8+3 de Crença","Efeito":""},"t":"Você usa das últimas forças dos espíritos ao seu redor para se curar, A energia positiva começa a curar você. por 1d6+2 turnos você se cura 1d6+1 pontos de vida. O ritual é dissipado se você se curar totalmente ou entrar em morrendo. Esse ritual só pode ser invocado novamente se ele foi dissipado ou encerrado por quaisquer maneiras. O alvo precisa estar corpo a corpo.\nDiscente(+3 PE): Muda a duração para 6+1d4 Turnos ou até ser dissipada e a recuperação para 1d8+1\nVerdadeiro: ?????"},{"n":"Desesperar Mensagem","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 Objeto","Duração":"Até ser desfeito","Custo":"3 PE | 1d4+2 de Crença","Efeito":""},"t":"Você usa um papel, pergaminho, ou quaisquer outro material possíveis de escrita e pode escrever ou transformar o que já está escrito em algo incompressível graças ao desespero, deixando a mensagem ou o que for escrito parecendo palavras horrendas ou algo semelhante a uma carta de despedida. Você escolhe quem pode ler por +1 PE por escolha."},{"n":"Guia do Vazio","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 Objeto","Duração":"Instantânea","Custo":"4 PE | 1d4+3 de Crença","Efeito":""},"t":"Você manifesta 2 corvos (ou animal voador de médio porte de sua preferência). Ao conjurar esse ritual você pode escolher três ações:\nAtacar Contrário: O animal voa em direção a uma criatura em alcance médio e explode numa espécie de lodo que grita e exala o mais puro desespero, o alvo pode esquivar com atletismo (dt extremo), caso passe toma metade do dano, caso não, toma 1d8+2 por entidade\nCapturar: O animal pode agarrar um objeto livre em alcance curto e pode voar por um raio ao redor de você. Cada animal pode carregar 1 espaço, quanto mais carregando, mais espaço pode ser carregado\nEspreitar: Os Animais tem camuflagem (-1 dado para atirar no bicho e de percepção e +1 dado de furtividade) e você pode ver o que os animais enxergam. Por 1 PE você pode trocar a visão para outro animal.\nDiscente(+2 PE): Muda o número de animais para 4."},{"n":"Intracorporar","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 ser","Duração":"Instantânea","Custo":"5 PE | 1d8+4 de Crença","Efeito":""},"t":"Você coagula e transforma o sangue e tripas dentro do alvo em espinhos que perfuram os órgãos internos, Causa 4d6 de dano de Visceral e deixa o alvo sangrando em 1d6 por 1d6 rodadas. Caso o alvo tenha sucesso no teste de constituição (DT EXTREMO), toma metade do dano e evita a condição.\nDiscente(+3 PE): muda o dano para 8d6 de dano de Visceral e coloca o alvo com as condições fraco e sangrando.\nVerdadeiro(+6 PE):????"},{"n":"Desindividualizar","c":{"Execução":"Padrão","Alcance":"curto","Alvo":"1 pessoa","Duração":"Cena","Custo":"5 PE | 1d6+2 de Crença","Efeito":""},"t":"Você invade a mente do alvo e consegue inundar com multíplas informações sussurradas pelos espíritos ao redor que fazem o alvo perder sua capacidade de raciocínio individual, ficando vulnerável e lento. O alvo toma 3d6+2 de dano Fantasmagórico e deve fazer um teste de constituição no final de seus turnos.\nDiscente(+3 PE): ??"},{"n":"Cercar de Sombras","c":{"Execução":"Padrão","Alcance":"Pessoal","Alvo":"Você","Duração":"Instantânea","Custo":"6 PE | 1d8+3 de Crença","Efeito":""},"t":"As sombras ao redor se juntam como uma capa que se arrasta no chão. Seu deslocamento passa a ser de 15 metros e ignora terrenos difíceis, ao passar sobre o aliado, cura 1d8 de vida e ao passar por um inimigo dá 1d8 de dano de Escuridão.\nDiscente(+5 PE): aumenta a cura pra 1d12+4 e o dano para o mesmo. Além de aumentar o deslocamento para 20 metros."},{"n":"Camuflagem","c":{"Execução":"Padrão","Alcance":"Pessoal","Alvo":"Você","Duração":"Cena","Custo":"5 PE | 1d6+3 de Crença","Efeito":""},"t":"Você consegue expor seu sangue para fora do corpo e moldá-lo como uma camuflagem corpórea. Você ganha Camuflagem 1 (Ganha +5 de Defesa e recebe +1 dado no ataque furtivo)."},{"n":"Teia Desesperada","c":{"Execução":"Padrão","Alcance":"Curto","Alvo":"Área de 4.5m","Duração":"Cena","Resistência":"Atletismo reduz","Custo":"5 PE | 1d4+2 de Crença","Efeito":""},"t":"Você cria correntes roxas nessa área que agarram o alvo buscando prender ele. Um ser na teia pode gastar uma ação padrão de atletismo (DT BOM) ou causar 20 de dano na corrente. Seres ficam agarrados, caso passem só ficam com desvantagem no próximo teste."},{"n":"Monocular","c":{"Execução":"Padrão","Alcance":"Pessoal","Alvo":"Você","Duração":"Sustentado (Teste de Espiritismo DT extremo)","Custo":"5 PE | 1d6+3 de Crença","Efeito":""},"t":"Você une seus olhos, os transformando em apenas um grande e único olho extremamente perceptível e sensível. Você recebe vantagem e +2 em Investigação, Percepção e Análise. Além disso, ao utilizar a ação de mirar, receberá vantagem em seu próximo teste de ataque à distância. Entretanto, pela sensibilidade advinda deste grande olho,você recebe desvantagem e -3 em testes para resistir a qualquer efeito que forneça as condições ofuscado ou Cego."},{"n":"Sentir Sangue","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"Cone de 9 metros","Duração":"Instantânea","Custo":"5 PE | 1d6+3 de Crença","Efeito":""},"t":"Você eleva seus sentidos momentaneamente ao ponto de serem capazes de detectar o fluxo sanguíneo, ouvir os batimentos cardíacos e até mesmo sentir o odor do medo dos seres. Ao utilizar este ritual, você irá detectar qualquer condição que esteja afetando alvos na área e saber quantos PV possuem atualmente. Se existir um ser escondido na área, você receberá vantagens e +2 no teste"},{"n":"Armadura de Sangue","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"Você","Duração":"Instantânea","Custo":"4 PE | 1d6+2 de Crença","Efeito":""},"t":"Seu sangue escorre para fora do corpo, cobrindo-o sob a forma de uma carapaça que fornece +5 em Defesa e 3 de DR . Esse bônus é cumulativo com equipamentos mas não com outros rituais"},{"n":"Chamas do Desespero","c":{"Execução":"Padrão","Alcance":"Curto","Alvo":"Veja Texto","Duração":"Cena","Custo":"5 PE | 1d8+3 de Crença"},"t":"Você manipula o calor e o fogo. Ao conjurar o ritual, escolha um dos seguintes efeitos.\nChamejar: o alvo é uma arma corpo a corpo. Ela causa +1d6 pontos de dano de fogo.\nEsquentar: o alvo é um objeto, que começa a esquentar. Ele sofre 1d6 pontos de dano de fogo por rodada e causa o mesmo dano a qualquer ser que o esteja empunhando ou vestindo. A critério do mestre, o objeto ou o ser pode pegar fogo. Um ser pode gastar uma ação completa para resfriar o objeto (jogando areia ou se jogando numa fonte de água próxima, por exemplo) e cancelar o efeito do ritual.\nExtinguir: o alvo é uma chama de tamanho Grande ou menor, que é apagada. Isso cria uma nuvem de fumaça que ocupa uma esfera de 3m de raio centrada onde estava a chama. Dentro da fumaça, os seres têm vantagem em furtividade.\nModelar: o alvo é uma chama de tamanho Grande ou menor. À cada rodada, você pode gastar uma ação livre para movimentá-la 9m em qualquer direção. Se atravessar o espaço ocupado por um ser, ela causa 3d6 pontos de dano de fogo nele. Um ser só pode sofrer dano dessa maneira uma vez por rodada.\nDiscente (+3 PE): muda a duração para sustentada e adiciona “Resistência: Reflexos reduz à metade” Em vez do normal, uma vez por rodada você pode gastar uma ação de movimento para projetar uma labareda, num alvo em alcance curto. O alvo sofre 4d6 pontos de dano de Fogo ou Desespero (Reflexos reduz à metade)."},{"n":"Consumir Células","c":{"Execução":"Padrão","Alcance":"Pessoal","Alvo":"Você","Duração":"instantânea","Custo":"4 PE | 1d6+3 de Crença"},"t":"Você suga uma pequena porção do tempo de vida de plantas, insetos e até mesmo do solo ao redor, gerando lodo e recebendo 3d6 pontos de vida temporários. Os PV temporários desaparecem ao final da cena.\nDiscente (+4 PE): muda os PV temporários recebidos para 6d6."},{"n":"Corpo Sanguíneo","c":{"Execução":"Padrão","Alcance":"Toque","Alvo":"1 pessoa ou animal","Duração":"cena","Custo":"4 PE | 1d4+2 de Crença"},"t":"Este ritual modifica a biologia do alvo para permitir a sobrevivência em ambientes hostis. O alvo fica imune a calor e frio extremos, pode respirar na água se respirar ar (ou vice-versa) e não sufoca em fumaça densa.\nDiscente (+2 PE): muda a duração para 1 dia."},{"n":"Vórtice Químico","c":{"Execução":"padrão","Alcance":"médio","Área":"nuvem com 6m de raio","Duração":"instantânea","Resistência":"Fortitude parcial (veja texto)","Custo":"4 PE | 1d6+3 de Crença"},"t":"Cria uma explosão de emanações tóxicas. Seres na área sofrem 4d8 pontos de dano químico e ficam enjoados por 1 rodada. Se passarem na resistência, sofrem metade do dano e não ficam enjoados.\nDiscente(+3 PE) Muda para 6d8 de dano de Escuridão"},{"n":"Frenesi","c":{"Execução":"padrão","Alcance":"toque","Alvo":"1 pessoa","Duração":"cena","Custo":"5 PE | 1d8+3 de Crença"},"t":"O alvo entra em um frenesi, aumentando sua agressividade e capacidade de luta. Ele recebe +2 em testes de ataque e rolagens de dano corpo a corpo e DR 2 contra dano balístico, corte, impacto e perfuração. Enquanto o efeito durar, o alvo não pode fazer nenhuma ação que exige calma e concentração (como usar a perícia Furtividade ou conjurar rituais), e deve sempre atacar um alvo em sua rodada, mesmo que seja um aliado se ele for o único a seu alcance.\nDiscente (+2 PE): além do normal, sempre que o alvo usar a ação agredir, pode fazer um ataque corpo a corpo adicional contra o mesmo alvo."},{"n":"Vacuidade Aquática","c":{"Execução":"padrão","Alcance":"longo","Área":"esfera com 30m de raio","Duração":"cena","Resistência":"veja texto","Custo":"5 PE | 1d8+4 de Crença"},"t":"Você canaliza Energia sobre um corpo de água, para que ele adquira movimentos e comportamentos paranormais e caóticos. Ao conjurar o ritual, escolha um dos seguintes efeitos.\nCongelar: toda a água mundana na área é congelada. Seres nadando na área ficam imóveis; escapar exige gastar uma ação padrão e passar num teste de Atletismo (DT igual a um teste de espiritismo).\nDerreter: gelo mundano na área vira água e o ritual termina. A critério do mestre, isso pode criar terreno difícil.\nEnchente: eleva o nível da água mundana na área em até 4,5m. A sua escolha, muda área para “alvo: uma embarcação” O alvo recebe +6m em seu deslocamento pela duração do efeito.\nEvaporar: toda a água e gelo mundano na área evaporam instantaneamente e o ritual termina. Qualquer ser vivo na área sofre 5d8 de dano de escuridão. O Vapor é convertido em uma espécie de fuligem que ataca todos. (Fortitude reduz à metade). Criaturas Fantasmagóricas tomam o dobro do dano\nPartir: diminui o nível de toda água mundana na área em até 4,5m. Em um corpo d'água raso, isso abre um caminho seco, que pode ser atravessado a pé. Em um corpo d'água profundo, cria um redemoinho que pode prender barcos (um teste de Pilotagem com DT igual à do ritual permite ao piloto livrar a embarcação).\nVerdadeiro (+5 PE): aumenta o deslocamento de enchente para +12m e o dano de evaporar para 8d8"},{"n":"Tentáculos Obsidiana","c":{"Execução":"padrão","Alcance":"médio","Área":"círculo com 6m de raio","Duração":"cena","Custo":"5 PE | 1d6+3 de Crença"},"t":"Uma fenda sombria se abre no chão, de onde surgem tentáculos feitos de lodo. Ao conjurar o ritual e no início de cada um de seus turnos, você faz um teste da manobra agarrar (usando Espiritismo em vez de Luta) contra cada alvo na área. Se você vencer, o ser é agarrado; se já estava agarrado, é esmagado, sofrendo 4d6 pontos de dano (metade impacto, metade Escuridão). A área do ritual conta como terreno difícil. Os tentáculos são imunes a danos de corte e balístico."},{"n":"Vomitar Pestes","c":{"Execução":"padrão","Alcance":"médio","Efeito":"1 enxame Grande (quadrado de 3m)","Duração":"sustentada","Resistência":"Reflexos reduz à metade","Custo":"5 PE | 1d8+3 de Crença"},"t":"Você vomita um enxame de pequenas criaturas viscerais, que surge em um ponto adjacente a sua escolha. O enxame pode passar pelo espaço de outros seres e não impede que outros seres entrem no espaço dele. No final de cada um de seus turnos, o enxame causa 4d10 pontos de dano de sangue a qualquer ser no espaço dele (Reflexos reduz à metade). Você pode gastar uma ação de movimento para mover o enxame com deslocamento de 9m."}]};
+let S={agentes:{},atual:null,cfg:{tema:"padrao",escala:100},migrado:false};
+let timer,filtro="Todos",pg=0,catsFechadas=false,dadoBusy=false;
 
-  const classBonuses = {
-    Espreitador: { destreza: 2, crime: 1, furtividade: 2, iniciativa: 1 },
-    Lutador: { força: 2, iniciativa: 2, intimidar: 1, constituição: 1 },
-    Inventor: { tecnologia: 2, inteligência: 2, sorte: 1, ciências: 1 },
-    Espírita: { espiritismo: 2, religião: 2, intuição: 1, análise: 1 },
-    Sobrevivente: { sobrevivência: 2, percepção: 2, intuição: 1, furtividade: 1 },
-    Altruísta: { terapia: 2, medicina: 2, lábia: 1, intuição: 1 },
-    Mentalista: { inteligência: 2, lábia: 2, constituição: 1, análise: 1 }
-  };
+/* ---------- Persistência ---------- */
+function novaFicha(nome){return{id:uid(),nome:nome||"Novo Espectro",classe:"",ocupacao:"",foto:PH,periciasBase:{},armas:[],inv:[],mochila:1,poderes:[],paginas:[{t:"",d:""}],stats:{pvA:20,pvM:20,sanA:20,sanM:20,peA:10,peM:10,crA:10,crM:10}}}
+function norm(d){const b=novaFicha(d.nome);const f=Object.assign(b,d);
+ f.id=f.id||uid();f.periciasBase=f.periciasBase||{};f.armas=f.armas||[];f.stats=Object.assign(b.stats,f.stats||{});
+ f.inv=Array.isArray(d.inv)?d.inv:(Array.isArray(d.inventario)?d.inventario:[]);delete f.inventario;
+ if(f.periciasBase["análise"]!==undefined){if(f.periciasBase["analisar"]===undefined)f.periciasBase["analisar"]=f.periciasBase["análise"];delete f.periciasBase["análise"]}
+ if(!Array.isArray(d.paginas)||!d.paginas.length)f.paginas=[{t:d.notas||"",d:d.desenho||""}];delete f.notas;delete f.desenho;
+ f.paginas=f.paginas.map(p=>({t:(p&&p.t)||"",d:(p&&p.d)||""}));
+ if(f.mochila===true)f.mochila=2;if(!f.mochila||f.mochila<1||f.mochila>3)f.mochila=1;
+ if(typeof f.poderes==="string"){f.poderes=f.poderes.trim()?[{id:uid(),tipo:"Habilidade de Classe",nome:"Notas anteriores",custo:"",texto:f.poderes,aberto:false}]:[]}
+ if(!Array.isArray(f.poderes))f.poderes=[];
+ if(!f.foto||/via\.placeholder/.test(f.foto))f.foto=PH;
+ return f}
+function F(){return S.agentes[S.atual]}
+function load(){
+ try{const r=localStorage.getItem("espectral_v2");if(r){const p=JSON.parse(r);S=Object.assign(S,p);S.cfg=Object.assign({tema:"padrao",escala:100},p.cfg||{})}}catch(e){}
+ try{if(!S.migrado){for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);
+   if(k&&k.indexOf("agente_")===0){try{const d=norm(JSON.parse(localStorage.getItem(k)));S.agentes[d.id]=d}catch(e){}}}
+   S.migrado=true}}catch(e){}
+ for(const id in S.agentes)S.agentes[id]=norm(S.agentes[id]);
+ if(!S.agentes[S.atual]){const ids=Object.keys(S.agentes);if(ids.length)S.atual=ids[0];else{const f=novaFicha();S.agentes[f.id]=f;S.atual=f.id}}}
+function salvar(){clearTimeout(timer);$("salvo").classList.remove("v");$("salvo").textContent="… salvando";
+ timer=setTimeout(()=>{try{localStorage.setItem("espectral_v2",JSON.stringify(S));$("salvo").textContent="● salvo";$("salvo").classList.add("v")}
+ catch(e){$("salvo").textContent="⚠ não foi possível salvar — use ⚙ Exportar backup"}},250)}
+function campo(k,v){F()[k]=v;if(k==="nome"||k==="classe")lista();salvar()}
 
-  // ESTADO DA FICHA
-  let ficha = { 
-    idOriginal: "", nome: "Novo Espectro", classe: "", ocupacao: "", periciasBase: {}, 
-    armas: [], inventario: [], mochila: false, poderes: "", foto: "https://via.placeholder.com/150",
-    stats: { pvA: 20, pvM: 20, sanA: 20, sanM: 20, peA: 10, peM: 10, crA: 10, crM: 10 }
-  };
-  
-  let periciasMinimizadas = false;
-  let timerSalvar; let rotD20 = 0; let rotDano = 0;
+/* ---------- Anotações: páginas com texto + desenho ---------- */
+const CORES=["#ffffff","#ffcc00","#ff4d5e","#3b9dff","#4ade80","#b66cff"];
+const dr={cor:"#ffffff",tam:4,borr:false,ativo:false,hist:[],last:null};let np=0;
+function nPag(){return F().paginas[np]}
+function notasInit(){const dc=$("nCv");
+ $("nTools").innerHTML=CORES.map(c=>`<button class="sw ${c===dr.cor?"on":""}" style="background:${c}" data-c="${c}" onclick="setCor('${c}')" aria-label="Cor"></button>`).join("")+
+ '<input type="range" min="1" max="24" value="4" title="Espessura" oninput="dr.tam=+this.value"><button class="btn sm" id="bBorr" onclick="toggleBorr()">Borracha</button><button class="btn sm" onclick="desfazer()">↶ Desfazer</button><button class="btn red sm" onclick="limparDes()">Limpar</button>';
+ const pt=e=>{const r=dc.getBoundingClientRect();return{x:(e.clientX-r.left)*dc.width/r.width,y:(e.clientY-r.top)*dc.height/r.height}};
+ dc.addEventListener("pointerdown",e=>{e.preventDefault();try{dc.setPointerCapture(e.pointerId)}catch(_){}snap();dr.ativo=true;dr.last=pt(e);traco(dr.last,dr.last)});
+ dc.addEventListener("pointermove",e=>{if(!dr.ativo)return;const p=pt(e);traco(dr.last,p);dr.last=p});
+ const fim=()=>{if(!dr.ativo)return;dr.ativo=false;gravaDes()};
+ dc.addEventListener("pointerup",fim);dc.addEventListener("pointercancel",fim)}
+function traco(a,b){const x=$("nCv").getContext("2d");x.globalCompositeOperation=dr.borr?"destination-out":"source-over";x.strokeStyle=dr.cor;x.lineWidth=dr.borr?dr.tam*3:dr.tam;x.lineCap=x.lineJoin="round";x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x+.01,b.y);x.stroke()}
+function snap(){const c=$("nCv");dr.hist.push(c.getContext("2d").getImageData(0,0,c.width,c.height));if(dr.hist.length>10)dr.hist.shift()}
+function gravaDes(){nPag().d=$("nCv").toDataURL("image/webp",.85);salvar()}
+function setCor(c){dr.cor=c;dr.borr=false;marcaFerr()}
+function toggleBorr(){dr.borr=!dr.borr;marcaFerr()}
+function marcaFerr(){document.querySelectorAll("#nTools .sw").forEach(b=>b.classList.toggle("on",!dr.borr&&b.dataset.c===dr.cor));$("bBorr").classList.toggle("on",dr.borr)}
+function desfazer(){if(!dr.hist.length)return;$("nCv").getContext("2d").putImageData(dr.hist.pop(),0,0);gravaDes()}
+function limparDes(){ask("Apagar o desenho desta página?",()=>{snap();const c=$("nCv");c.getContext("2d").clearRect(0,0,c.width,c.height);gravaDes()},{ok:"Apagar"})}
+function notaModo(a){$("nStage").classList.toggle("des",a==="des");$("nTools").style.display=a==="des"?"":"none";document.querySelectorAll("#nAbas .btn").forEach(b=>b.classList.toggle("on",b.dataset.a===a))}
+function carregaPag(){const f=F(),p=nPag(),c=$("nCv"),x=c.getContext("2d");$("nTxt").value=p.t||"";x.globalCompositeOperation="source-over";x.clearRect(0,0,c.width,c.height);dr.hist=[];
+ if(p.d){const im=new Image(),k=np;im.onload=()=>{if(k===np)x.drawImage(im,0,0,c.width,c.height)};im.src=p.d}
+ $("nSel").innerHTML=f.paginas.map((_,i)=>`<option value="${i}" ${i===np?"selected":""}>Página ${i+1} / ${f.paginas.length}</option>`).join("")}
+function irPag(i){np=Math.max(0,Math.min(F().paginas.length-1,i));carregaPag()}
+function addPag(){F().paginas.push({t:"",d:""});np=F().paginas.length-1;carregaPag();salvar()}
+function delPag(){const f=F();ask("Apagar esta página de anotações?",()=>{if(f.paginas.length>1)f.paginas.splice(np,1);else f.paginas[0]={t:"",d:""};np=Math.min(np,f.paginas.length-1);carregaPag();salvar()},{ok:"Apagar"})}
+function abrirNotas(){np=0;modal("mNotas",1);notaModo("esc");carregaPag()}
+/* ---------- Backup / armazenamento ---------- */
+function testeArm(){try{localStorage.setItem("__t","1");localStorage.removeItem("__t");return true}catch(e){return false}}
+const armOk=testeArm();
+function abrirCfg(){const o=String(location.protocol)==="file:"?"arquivo local (file://)":String(location.origin);
+ $("infoArm").textContent="Salvamento automático: "+(armOk?"ativo no navegador (localStorage)":"INDISPONÍVEL neste modo de abertura")+" · origem: "+o+". Os dados ficam só neste navegador e nesta origem; use o backup para levar para outro lugar.";modal("mCfg",1)}
+function exportar(){const b=new Blob([JSON.stringify({espectral:2,atual:S.atual,agentes:S.agentes})],{type:"application/json"}),a=document.createElement("a");
+ a.href=URL.createObjectURL(b);a.download="espectral-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
+function importar(inp){const file=inp.files[0];if(!file)return;const r=new FileReader();
+ r.onload=e=>{try{const d=JSON.parse(e.target.result);const L=d&&d.agentes?Object.values(d.agentes):Array.isArray(d)?d:(d&&d.nome?[d]:[]);if(!L.length)throw 0;
+  let ult=null;L.forEach(x=>{const f=norm(x);S.agentes[f.id]=f;ult=f.id});abrir(ult);ask(L.length+" espectro(s) importado(s).",null,{ok:"OK"})}catch(_){ask("Arquivo inválido: não encontrei fichas nele.",null,{ok:"OK"})}};
+ r.readAsText(file);inp.value=""}
+/* ---------- Diálogo próprio ---------- */
+let askCb=null;
+function ask(msg,cb,opt){opt=opt||{};$("askMsg").textContent=msg;$("askIn").style.display=opt.input?"":"none";$("askIn").value=opt.val||"";$("askOk").textContent=opt.ok||"Confirmar";askCb=cb;modal("mAsk",1);if(opt.input)setTimeout(()=>$("askIn").focus(),50)}
+function askFim(ok){const cb=askCb,v=$("askIn").value;askCb=null;modal("mAsk",0);if(ok&&cb)cb(v)}
+/* ---------- Sidebar / Agentes ---------- */
+function lista(){$("lista").innerHTML=Object.values(S.agentes).map(a=>`<div class="ag ${a.id===S.atual?"on":""}" onclick="abrir('${a.id}')"><img src="${esc(a.foto)}" alt=""><div><b>${esc(a.nome)||"Sem nome"}</b><small>${esc(a.classe)||"S/ classe"}</small></div></div>`).join("")}
+function abrir(id){S.atual=id;preencher();lista();salvar()}
+function novo(){ask("Nome do novo espectro:",n=>{const f=novaFicha((n||"").trim()||"Novo Espectro");S.agentes[f.id]=f;abrir(f.id)},{input:1,ok:"Criar"})}
+function deletar(){ask("Apagar permanentemente este espectro?",()=>{delete S.agentes[S.atual];
+ const ids=Object.keys(S.agentes);if(ids.length)S.atual=ids[0];else{const f=novaFicha();S.agentes[f.id]=f;S.atual=f.id}
+ preencher();lista();salvar()},{ok:"Apagar"})}
 
-  window.onload = () => { 
-    initUI(); 
-    atualizarListaLateral();
-    const ultimo = localStorage.getItem("ultimoAgente");
-    if(ultimo) carregarAgente(ultimo);
-  };
+/* ---------- Construção da UI ---------- */
+function init(){
+ $("tabs").innerHTML=[["esp","Espectro"],["tes","Testes"],["arm","Arsenal"],["pod","Poderes"],["car","Carga"]].map((t,i)=>`<button class="${i?"":"on"}" data-t="${t[0]}" onclick="aba('${t[0]}')">${t[1]}</button>`).join("");
+ $("classe").innerHTML+=Object.keys(BON).map(c=>`<option>${c}</option>`).join("");
+ $("stats").innerHTML=STATS.map(s=>`<div class="st"><label><span>${s[1]}</span><span class="n"><input type="number" id="${s[0]}A" oninput="stat()"> / <input type="number" id="${s[0]}M" oninput="stat()"></span></label><div class="bar"><i id="b_${s[0]}" style="background:${s[2]};box-shadow:0 0 8px ${s[2]}"></i></div></div>`).join("");
+ $("cats").innerHTML=CATS.map((c,i)=>`<div class="cat" id="cat${i}"><header onclick="this.parentNode.classList.toggle('fechado')"><span>${c[0]}</span><span class="tag" id="soma${i}">0</span></header><div class="grid">${c[1].map(p=>`<div class="per"><label>${p} <em id="bn_${p}"></em></label><div><input type="number" min="0" id="in_${p}" oninput="base('${p}',this.value)"><strong id="t_${p}">0</strong></div></div>`).join("")}</div></div>`).join("");
+ $("selTeste").innerHTML=CATS.map(c=>`<optgroup label="${c[0]}">${c[1].map(p=>`<option value="${p}">${p.toUpperCase()}</option>`).join("")}</optgroup>`).join("");
+ $("filtros").innerHTML=["Todos","Habilidade de Classe","Multiclasse","Ritual"].map(f=>`<button class="btn sm" data-f="${f}" onclick="setFiltro('${f}')">${f==="Habilidade de Classe"?"Classe":f==="Ritual"?"Rituais":f}</button>`).join("");
+ $("temas").innerHTML=Object.keys(TEMAS).map(k=>`<button class="btn" data-k="${k}" onclick="setTema('${k}')">${TEMAS[k][0]}</button>`).join("");
+ $("inFoto").value="";
+}
+function aba(t){document.querySelectorAll(".tab").forEach(s=>s.classList.toggle("on",s.id==="t-"+t));document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t))}
+function toggleCats(){catsFechadas=!catsFechadas;document.querySelectorAll(".cat").forEach(c=>c.classList.toggle("fechado",catsFechadas))}
+function modal(id,on){$(id).classList.toggle("on",!!on)}
 
-  function initUI() {
-    const container = document.getElementById("containerCategorias");
-    const sel = document.getElementById("selectTeste");
-    container.innerHTML = ""; sel.innerHTML = '<option value="">-- Escolha Perícia --</option>';
-    for (let cat in categorias) {
-      const catId = cat.replace(/\s+/g, '');
-      let html = `<div class="categoria-bloco"><div class="categoria-header"><div><span class="categoria-titulo">${cat}</span><span class="soma-tag" id="soma_${catId}">0</span></div></div><div class="pericia-grid" id="grid_${catId}">`;
-      categorias[cat].forEach(p => {
-        ficha.periciasBase[p] = 0;
-        html += `<div class="pericia-box"><label style="text-transform: capitalize; font-size: 10px;">${p} <span id="b_${p}" class="bonus-tag"></span></label><div class="pericia-val"><input type="number" value="0" id="in_${p}" onchange="updateBase('${p}', this.value)" style="width:32px"><strong id="tot_${p}" style="color:var(--primary)">0</strong></div></div>`;
-        sel.innerHTML += `<option value="${p}">${p.toUpperCase()}</option>`;
-      });
-      container.innerHTML += html + `</div></div>`;
-    }
-  }
+function preencher(){const f=F();
+ $("nome").value=f.nome;$("classe").value=f.classe;$("ocup").value=f.ocupacao||"";$("foto").src=f.foto;
+ STATS.forEach(s=>{$(s[0]+"A").value=f.stats[s[0]+"A"];$(s[0]+"M").value=f.stats[s[0]+"M"]});
+ CATS.forEach(c=>c[1].forEach(p=>$("in_"+p).value=f.periciasBase[p]||0));
+ $("selMoch").value=f.mochila;
+ stat(true);renderArmas();renderPoderes();renderItens();calc()}
 
-  // --- LÓGICA DE SALVAMENTO E CARREGAMENTO ---
-  function updateStatusBars() {
-    const getVal = (id) => parseInt(document.getElementById(id).value) || 0;
-    
-    // Captura valores da tela
-    ficha.stats = {
-      pvA: getVal("pvAtu"), pvM: getVal("pvMax") || 1,
-      sanA: getVal("sanAtu"), sanM: getVal("sanMax") || 1,
-      peA: getVal("peAtu"), peM: getVal("peMax") || 1,
-      crA: getVal("crAtu"), crM: getVal("crMax") || 1
-    };
+/* ---------- Status ---------- */
+function stat(sem){const f=F();STATS.forEach(s=>{const k=s[0],a=parseInt($(k+"A").value)||0,m=parseInt($(k+"M").value)||0;
+ f.stats[k+"A"]=a;f.stats[k+"M"]=m;$("b_"+k).style.width=(m>0?Math.max(0,Math.min(100,a/m*100)):0)+"%"});
+ if(!sem)salvar()}
 
-    // Atualiza barras visuais
-    document.getElementById("bar-pv").style.width = Math.min((ficha.stats.pvA/ficha.stats.pvM)*100, 100) + "%";
-    document.getElementById("bar-san").style.width = Math.min((ficha.stats.sanA/ficha.stats.sanM)*100, 100) + "%";
-    document.getElementById("bar-pe").style.width = Math.min((ficha.stats.peA/ficha.stats.peM)*100, 100) + "%";
-    document.getElementById("bar-cr").style.width = Math.min((ficha.stats.crA/ficha.stats.crM)*100, 100) + "%";
-  }
+/* ---------- Perícias ---------- */
+function lvl(p){const f=F();return(f.periciasBase[p]||0)+((BON[f.classe]||{})[p]||0)}
+function base(p,v){F().periciasBase[p]=Math.max(0,parseInt(v)||0);calc();salvar()}
+function calc(){const f=F(),bn=BON[f.classe]||{};let ess=0,ger=0;
+ CATS.forEach((c,i)=>{let soma=0;c[1].forEach(p=>{const t=lvl(p),b=bn[p]||0;$("t_"+p).textContent=t;$("bn_"+p).textContent=b?"+"+b:"";soma+=f.periciasBase[p]||0;if(i===0)ess+=f.periciasBase[p]||0;else ger+=f.periciasBase[p]||0});$("soma"+i).textContent="Total "+soma});
+ $("sEss").textContent="Essenciais "+ess+"/45";$("sGer").textContent="Gerais "+ger+"/120";
+ $("sEss").style.color=ess>45?"var(--bad)":"";$("sGer").style.color=ger>120?"var(--bad)":"";
+ calcCarga()}
 
-  function autoSalvar(forcarLista = false) {
-    updateStatusBars();
-    clearTimeout(timerSalvar);
-    timerSalvar = setTimeout(() => {
-      const nomeInputs = document.getElementById("nomeAgente").value || "Sem Nome";
-      if (ficha.idOriginal && ficha.idOriginal !== nomeInputs) {
-        localStorage.removeItem("agente_" + ficha.idOriginal);
-      }
-      ficha.nome = nomeInputs;
-      ficha.idOriginal = nomeInputs;
-      ficha.classe = document.getElementById("classeAgente").value;
-      ficha.ocupacao = document.getElementById("ocupacaoAgente").value;
-      ficha.poderes = document.getElementById("txtPoderes").value;
-      ficha.mochila = document.getElementById("checkMochila").checked;
-      ficha.foto = document.getElementById("previewFoto").src;
+/* ---------- Teste de perícia ---------- */
+function rolarTeste(){if(dadoBusy)return;const p=$("selTeste").value,mod=parseInt($("modTeste").value)||0,n=Math.min(20,lvl(p)),d=$("d20");
+ dadoBusy=true;d.classList.remove("rola");void d.offsetWidth;d.classList.add("rola");$("resT").textContent="";
+ const iv=setInterval(()=>d.textContent=1+Math.floor(Math.random()*20),60);
+ setTimeout(()=>{clearInterval(iv);dadoBusy=false;const r=1+Math.floor(Math.random()*20),tot=r+mod,th=TAB[n]||[0,0,0];
+  d.textContent=r;let g="Fracasso",c="var(--bad)";
+  if(th[2]&&tot>=th[2]){g="Extremo!";c="#00ffd0"}else if(th[1]&&tot>=th[1]){g="Bom";c="var(--ok)"}else if(th[0]&&tot>=th[0]){g="Normal";c="#ffe14d"}
+  $("resT").innerHTML=`<span style="color:${c}">${g}</span>`;
+  $("detT").textContent=`${p.toUpperCase()} nível ${n} — d20 (${r}) ${mod<0?"-":"+"} ${Math.abs(mod)} = ${tot}`+(n===0?" — sem pontos na perícia":"");
+  $("tabT").innerHTML=th[0]?`<span>Normal ≥ ${th[0]}</span><span>Bom ${th[1]?"≥ "+th[1]:"—"}</span><span>Extremo ${th[2]?"≥ "+th[2]:"—"}</span>`:"<span>Nível 0: apenas Fracasso</span>"},700)}
 
-      localStorage.setItem("agente_" + ficha.nome, JSON.stringify(ficha));
-      localStorage.setItem("ultimoAgente", ficha.nome);
-      if(forcarLista) atualizarListaLateral();
-    }, 500);
-  }
+/* ---------- Arsenal ---------- */
+function addArma(){const n=$("aNome").value.trim(),d=$("aDano").value.trim();if(!n||!/\d*d\d+|\d+/.test(d))return alert("Informe nome e dano válido (ex: 2d6+4).");
+ F().armas.push({n,d});$("aNome").value="";$("aDano").value="";renderArmas();salvar()}
+function renderArmas(){$("armas").innerHTML=F().armas.map((a,i)=>`<div class="item"><strong>${esc(a.n)}</strong><span style="font-family:var(--mono)">${esc(a.d)}</span><span><button class="btn sm" onclick="rolarDano(${i})">⚔ Rolar</button> <button class="btn red sm" onclick="delArma(${i})">✖</button></span></div>`).join("")||'<div class="det">Nenhuma arma registrada.</div>'}
+function delArma(i){F().armas.splice(i,1);renderArmas();salvar()}
+function rolarDano(i){const a=F().armas[i],bandeja=$("bandeja");bandeja.innerHTML="";$("resD").textContent="";$("detD").textContent="";
+ const toks=a.d.replace(/\s+/g,"").match(/[+-]?(\d*d\d+|\d+)/gi);if(!toks)return;let total=0,partes=[],k=0;
+ toks.forEach(t=>{let sg=1;if(t[0]==="-"){sg=-1;t=t.slice(1)}else if(t[0]==="+")t=t.slice(1);
+  if(/d/i.test(t)){const[q,fc]=t.toLowerCase().split("d").map(Number),qt=Math.min(q||1,40),fa=Math.max(fc,1);let rs=[];
+   for(let j=0;j<qt;j++){const r=1+Math.floor(Math.random()*fa);rs.push(r);const el=document.createElement("div");el.className="die";el.style.animationDelay=(k++*70)+"ms";el.innerHTML=r+"<small>d"+fa+"</small>";bandeja.appendChild(el)}
+   const s=rs.reduce((x,y)=>x+y,0);total+=sg*s;partes.push((sg<0?"-":"")+"["+rs.join("+")+"]")}
+  else{total+=sg*parseInt(t);partes.push((sg<0?"-":"+")+t)}});
+ setTimeout(()=>{$("resD").textContent=`${a.n}: ${total} de dano`;$("detD").textContent=`${a.d} → ${partes.join(" ").replace(/\s\+/g," + ")} = ${total}`},300+k*70)}
 
-  function carregarAgente(nome) {
-    const dados = JSON.parse(localStorage.getItem("agente_" + nome));
-    if(!dados) return; 
-    
-    ficha = dados;
-    ficha.idOriginal = dados.nome;
+/* ---------- Poderes / Grimório ---------- */
+function setFiltro(f){filtro=f;renderPoderes()}
+function addPoder(tipo){F().poderes.push({id:uid(),tipo,nome:"Novo "+(tipo==="Ritual"?"Ritual":"Poder"),custo:"",texto:"",aberto:true,exp:false,expDe:""});renderPoderes();salvar()}
+function pd(i,k,v){const p=F().poderes[i];p[k]=v;if(k==="nome"){const t=$("pt"+i);if(t)t.textContent=v||"(sem nome)"}salvar()}
+function togglePd(i){const p=F().poderes[i];p.aberto=!p.aberto;renderPoderes();salvar()}
+function delPd(i){const p=F().poderes[i];if(!p)return;ask("Remover \""+(p.nome||"este poder")+"\"?",()=>{F().poderes.splice(i,1);renderPoderes();if($("mLivro").classList.contains("on"))renderLivro(false);salvar()},{ok:"Remover"})}
+function renderPoderes(){acesso();document.querySelectorAll("#filtros .btn").forEach(b=>b.classList.toggle("on",b.dataset.f===filtro));
+ const L=F().poderes.map((p,i)=>[p,i]).filter(x=>filtro==="Todos"||x[0].tipo===filtro);
+ $("poderes").innerHTML=L.map(([p,i])=>`<div class="card ${p.aberto?"aberto":""}"><header onclick="togglePd(${i})"><span class="tp">${p.tipo==="Habilidade de Classe"?(p.grupo?esc(p.grupo):"Classe"):p.tipo}</span><b id="pt${i}" style="flex:1">${esc(p.nome)||"(sem nome)"}</b><span class="det">${p.custo?esc(p.custo):""}</span><span>${p.aberto?"▲":"▼"}</span></header>
+ <div class="cb"><input placeholder="Nome" value="${esc(p.nome)}" oninput="pd(${i},'nome',this.value)"><input placeholder="Custo (ex: 3 PE)" value="${esc(p.custo)}" oninput="pd(${i},'custo',this.value)">
+ <select onchange="pd(${i},'tipo',this.value);renderPoderes()">${["Habilidade de Classe","Multiclasse","Ritual"].map(t=>`<option ${t===p.tipo?"selected":""}>${t}</option>`).join("")}</select>
+ <textarea class="full" placeholder="Descrição / efeito" oninput="pd(${i},'texto',this.value)">${esc(p.texto)}</textarea>
+ ${p.tipo==="Multiclasse"?`<label class="full" style="display:flex;gap:8px;align-items:center"><input type="checkbox" style="width:auto" ${p.exp?"checked":""} onchange="pd(${i},'exp',this.checked);renderPoderes()"> Expansão de Conhecimento (habilidade de outra classe)</label>${p.exp?`<input class="full" placeholder="Classe / habilidade de origem" value="${esc(p.expDe)}" oninput="pd(${i},'expDe',this.value)">`:""}`:""}
+ <button class="btn red sm full" onclick="delPd(${i})">Remover</button></div></div>`).join("")||'<div class="det">Nenhum poder nesta categoria.</div>'}
+/* ---------- Livros de Habilidades e Rituais ---------- */
+const GRUPOS=["Lutador","Mentalista","Espreitador","Inventor","Espírita","Sobrevivente","Altruísta","Multiclasse"];
+let lv={tipo:"hab",grupo:"Multiclasse",sp:0};
+function temExpansao(f){return f.poderes.some(p=>p.exp||/^expans[aã]o de conhecimento$/i.test((p.nome||"").trim()))}
+function liberado(g){const f=F();return g==="Multiclasse"||f.classe===g||temExpansao(f)}
+function sabe(r){return F().poderes.some(p=>p.ref===r)}
+function acesso(){const f=F(),el=$("acesso");if(!el)return;
+ el.textContent=temExpansao(f)?"Expansão de Conhecimento ativa: habilidades de todas as classes liberadas.":(f.classe?"Habilidades liberadas: "+f.classe+" + Multiclasse. Rituais: todos.":"Escolha uma classe na aba Espectro. Por enquanto só Multiclasse e Rituais estão liberados.")}
+function entradas(){return lv.tipo==="rit"?LIVRO.rit:(liberado(lv.grupo)?LIVRO.hab[lv.grupo]:null)}
+function refDe(e){return lv.tipo==="rit"?"rit:"+e.n:"hab:"+lv.grupo+":"+e.n}
+function abrirLivro(tipo){const f=F(),b=$("bk"),c=$("capa");lv.tipo=tipo;lv.sp=0;lv.grupo=GRUPOS.indexOf(f.classe)>=0?f.classe:"Multiclasse";
+ modal("mLivro",1);b.classList.remove("aberto");c.style.display="";$("capaT").textContent=tipo==="hab"?"Livro de Habilidades":"Livro de Rituais";
+ renderLivro(false);void b.offsetWidth;setTimeout(()=>b.classList.add("aberto"),80);setTimeout(()=>{c.style.display="none"},1400)}
+function setGrupo(g){lv.grupo=g;lv.sp=0;renderLivro(true)}
+function vira(d){lv.sp+=d;renderLivro(true)}
+function ir(i){lv.sp=Math.floor(i/2);renderLivro(true)}
+function pagina(e,i){const r=refDe(e),ok=sabe(r);let c;
+ if(lv.tipo==="rit")c=`<h3>${esc(e.n)}${e.m?" <small>(1)</small>":""}</h3>`+(e.c?`<div class="campos">${Object.keys(e.c).map(k=>`<span><b>${esc(k)}:</b> ${esc(e.c[k])}</span>`).join("")}</div>`:"");
+ else c=`<h3>${esc(e.n)}</h3><div class="det" style="text-align:left">${esc(lv.grupo)}</div>`;
+ const btn=e.nota?"":(ok?`<button class="btn red sm" onclick="esquecer(${i})">Esquecer</button>`:`<button class="btn sm" onclick="aprender(${i})">Aprender</button>`);
+ return `<div class="pg">${c}<p>${esc(e.t)}</p><div class="rod"><span class="det">${ok?"✔ aprendida · ":""}pág. ${i+1}</span>${btn}</div></div>`}
+function renderLivro(anim){const L=entradas(),sp=$("spread"),f=F();
+ $("marc").innerHTML=lv.tipo==="hab"?GRUPOS.map(g=>`<button class="btn sm ${g===lv.grupo?"on":""}" onclick="setGrupo('${g}')">${liberado(g)?"":"🔒 "}${g}</button>`).join(""):'<span class="det">Rituais: disponíveis para qualquer classe</span>';
+ if(!L){sp.className="spread";$("irPara").innerHTML="";$("pgNum").textContent="";
+  sp.innerHTML=`<div class="pg lock"><h3>🔒 ${esc(lv.grupo)}</h3><p style="flex:none">${f.classe?"Estas habilidades só podem ser escolhidas por um(a) "+esc(lv.grupo)+".":"Escolha uma classe na aba Espectro."}\n\nAprenda a habilidade multiclasse “Expansão de Conhecimento” para liberar as habilidades de todas as classes.</p></div>`;return}
+ const tot=Math.ceil(L.length/2);lv.sp=Math.max(0,Math.min(lv.sp,tot-1));
+ sp.className="spread"+(anim?" anim":"");
+ sp.innerHTML=L.slice(lv.sp*2,lv.sp*2+2).map((e,k)=>pagina(e,lv.sp*2+k)).join("");
+ $("irPara").innerHTML=L.map((e,i)=>`<option value="${i}" ${i===lv.sp*2?"selected":""}>${esc(e.n)}</option>`).join("");
+ $("pgNum").textContent=(lv.sp*2+1)+"–"+Math.min(L.length,lv.sp*2+2)+" / "+L.length}
+function ritTexto(e){return Object.keys(e.c||{}).map(k=>k+": "+e.c[k]).join("\n")+"\n\n"+e.t}
+function aprender(i){const e=entradas()[i],f=F(),r=refDe(e),rit=lv.tipo==="rit";if(!e||e.nota||sabe(r))return;if(!rit&&!liberado(lv.grupo))return;
+ f.poderes.push({id:uid(),ref:r,grupo:rit?"":lv.grupo,tipo:rit?"Ritual":(lv.grupo==="Multiclasse"?"Multiclasse":"Habilidade de Classe"),nome:e.n,custo:rit?((e.c||{}).Custo||""):"",texto:rit?ritTexto(e):e.t,aberto:false,exp:e.n==="Expansão de Conhecimento",expDe:""});
+ renderPoderes();renderLivro(false);salvar()}
+function esquecer(i){const e=entradas()[i],r=refDe(e),k=F().poderes.findIndex(p=>p.ref===r);if(k<0)return;F().poderes.splice(k,1);renderPoderes();renderLivro(false);salvar()}
 
-    // Preencher campos básicos
-    document.getElementById("nomeAgente").value = ficha.nome;
-    document.getElementById("classeAgente").value = ficha.classe;
-    document.getElementById("ocupacaoAgente").value = ficha.ocupacao;
-    document.getElementById("txtPoderes").value = ficha.poderes || "";
-    document.getElementById("previewFoto").src = ficha.foto || "https://via.placeholder.com/150";
-    document.getElementById("checkMochila").checked = !!ficha.mochila;
+/* ---------- Carga ---------- */
+function addItem(){F().inv.push({n:"Novo item",p:1});renderItens();salvar()}
+function renderItens(){$("itens").innerHTML=F().inv.map((it,i)=>`<div class="item inv"><input value="${esc(it.n)}" oninput="F().inv[${i}].n=this.value;salvar()"><input type="number" min="0" step="0.5" value="${esc(it.p)}" title="Peso" oninput="F().inv[${i}].p=parseFloat(this.value)||0;calcCarga();salvar()"><button class="btn red sm" onclick="F().inv.splice(${i},1);renderItens();salvar()">✖</button></div>`).join("");calcCarga()}
+function calcCarga(){const f=F(),forca=lvl("força"),m=f.mochila||1,max=forca*m;let at=0;f.inv.forEach(i=>at+=parseFloat(i.p)||0);at=Math.round(at*100)/100;
+ const over=at>max,pct=max>0?Math.min(100,at/max*100):(at>0?100:0);
+ $("cargaBar").style.width=pct+"%";$("cargaBox").classList.toggle("over",over);
+ $("cargaLbl").textContent=`Carga: ${at} / ${max}`+(over?" — SOBRECARGA!":"");
+ $("cargaInfo").textContent=`Força ${forca} × ${m} = Carga Máxima ${max}`+(over?` (excesso de ${Math.round((at-max)*100)/100})`:"")}
 
-    // PREENCHIMENTO OBRIGATÓRIO DOS STATUS (EVITA REPETIR O ANTERIOR)
-    const s = ficha.stats || { pvA: 20, pvM: 20, sanA: 20, sanM: 20, peA: 10, peM: 10, crA: 10, crM: 10 };
-    document.getElementById("pvAtu").value = s.pvA; document.getElementById("pvMax").value = s.pvM;
-    document.getElementById("sanAtu").value = s.sanA; document.getElementById("sanMax").value = s.sanM;
-    document.getElementById("peAtu").value = s.peA; document.getElementById("peMax").value = s.peM;
-    document.getElementById("crAtu").value = s.crA; document.getElementById("crMax").value = s.crM;
+/* ---------- Foto ---------- */
+function upFoto(inp){const file=inp.files[0];if(!file)return;const r=new FileReader();
+ r.onload=e=>{const im=new Image();im.onload=()=>{const c=document.createElement("canvas"),s=Math.min(1,200/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+  const u=c.toDataURL("image/jpeg",.8);F().foto=u;$("foto").src=u;lista();salvar()};im.src=e.target.result};r.readAsDataURL(file);inp.value=""}
 
-    // Perícias
-    for(let p in categorias) {
-      categorias[p].forEach(per => {
-        const val = (ficha.periciasBase && ficha.periciasBase[per]) ? ficha.periciasBase[per] : 0;
-        const input = document.getElementById(`in_${per}`);
-        if(input) input.value = val;
-      });
-    }
-    
-    renderArmas(); renderInv(); calcTudo(); updateStatusBars(); atualizarListaLateral();
-  }
+/* ---------- Temas & escala ---------- */
+function setTema(k){S.cfg.tema=k;document.body.dataset.tema=k;document.querySelectorAll("#temas .btn").forEach(b=>b.classList.toggle("on",b.dataset.k===k));spawn();salvar()}
+function setEscala(v){S.cfg.escala=v;document.body.style.zoom=v/100;$("escLbl").textContent=v+"%";$("esc").value=v;salvar()}
 
-  function novoAgente() {
-    const nome = prompt("Nome do novo espectro:");
-    if(!nome) return;
-    ficha = { 
-      nome, idOriginal: nome, classe: "", ocupacao: "", periciasBase: {}, 
-      armas: [], inventario: [], mochila: false, poderes: "", 
-      foto: "https://via.placeholder.com/150", 
-      stats: { pvA: 20, pvM: 20, sanA: 20, sanM: 20, peA: 10, peM: 10, crA: 10, crM: 10 } 
-    };
-    localStorage.setItem("agente_" + nome, JSON.stringify(ficha));
-    carregarAgente(nome);
-  }
+/* ---------- Fundo animado ---------- */
+const cv=$("bg"),cx=cv.getContext("2d");let W=0,H=0,P=[];
+function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight}
+function mk(k){const r=Math.random,p={x:r()*W,y:r()*H,ph:r()*6.28,vx:0,vy:0,r:10,a:.2};
+ if(k==="poeira"){p.r=2+r()*4;p.vy=-.15-r()*.2;p.vx=(r()-.5)*.2;p.a=.5}
+ else if(k==="visc"){p.r=14+r()*46;p.vy=-.2-r()*.6;p.vx=(r()-.5)*.3;p.a=.22}
+ else if(k==="nevoa"){p.r=110+r()*170;p.vx=(r()-.5)*.5;p.vy=(r()-.5)*.2;p.a=.1}
+ else if(k==="espirito"){p.r=16+r()*26;p.vy=-.3-r()*.4;p.a=.2}
+ else{p.r=12+r()*50;p.vy=.15+r()*.5;p.vx=(r()-.5)*.1;p.a=.16}
+ return p}
+function spawn(){const T=TEMAS[S.cfg.tema]||TEMAS.padrao;P=Array.from({length:T[3]==="nevoa"?18:40},()=>mk(T[3]))}
+function orb(x,y,r,c,a){const g=cx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`rgba(${c},${a})`);g.addColorStop(1,`rgba(${c},0)`);cx.fillStyle=g;cx.beginPath();cx.arc(x,y,r,0,6.2832);cx.fill()}
+function frame(t){const T=TEMAS[S.cfg.tema]||TEMAS.padrao,c=T[1].join(","),k=T[3];
+ cx.fillStyle=T[2];cx.fillRect(0,0,W,H);
+ if(k==="visc"){cx.fillStyle=`rgba(${c},${.04+.04*Math.sin(t/450)})`;cx.fillRect(0,0,W,H)}
+ P.forEach(p=>{p.x+=p.vx+(k==="espirito"?Math.sin(t/900+p.ph)*.5:0);p.y+=p.vy;
+  if(p.y<-p.r*2)p.y=H+p.r;if(p.y>H+p.r*2)p.y=-p.r;if(p.x<-p.r*2)p.x=W+p.r;if(p.x>W+p.r*2)p.x=-p.r;
+  const pu=.5+.5*Math.sin(t/(k==="visc"?330:1300)+p.ph);
+  if(k==="lodo"){orb(p.x,p.y,p.r,"60,62,70",p.a*1.4)}else orb(p.x,p.y,p.r*(k==="visc"?.75+.45*pu:1),c,p.a*(.5+pu));
+  if(k==="espirito"){cx.fillStyle="rgba(255,255,255,.35)";cx.beginPath();cx.arc(p.x-p.r*.25,p.y-p.r*.1,1.6,0,6.3);cx.arc(p.x+p.r*.25,p.y-p.r*.1,1.6,0,6.3);cx.fill()}});
+ if(k==="nevoa"&&Math.random()<.1){cx.fillStyle=`rgba(${c},.14)`;cx.fillRect(Math.random()*W*.3,Math.random()*H,W*(.3+Math.random()*.7),1+Math.random()*3)}
+ if(k==="lodo"){cx.fillStyle="#000";cx.beginPath();cx.moveTo(0,H);for(let x=0;x<=W+20;x+=20)cx.lineTo(x,H-34-12*Math.sin(x/60+t/1500)-8*Math.sin(x/23+t/700));cx.lineTo(W,H);cx.fill()}
+ requestAnimationFrame(frame)}
 
-  function atualizarListaLateral() {
-    const lista = document.getElementById("listaAgentesLateral");
-    lista.innerHTML = "";
-    for(let i=0; i<localStorage.length; i++) {
-      let k = localStorage.key(i);
-      if(k.startsWith("agente_")) {
-        const d = JSON.parse(localStorage.getItem(k));
-        const active = (d.nome === ficha.nome) ? "active" : "";
-        lista.innerHTML += `
-          <div class="agente-card ${active}" onclick="carregarAgente('${d.nome}')">
-            <img src="${d.foto}">
-            <div class="info"><span class="nome">${d.nome}</span><span class="classe">${d.classe || 'S/ Classe'}</span></div>
-          </div>`;
-      }
-    }
-  }
-
-  // --- SISTEMA DE ROLAGENS (D20 E DANO) ---
-  function rolarD20() {
-    const p = document.getElementById("selectTeste").value; if(!p) return;
-    const n = getFinalVal(p); const rol = Math.floor(Math.random() * 20) + 1;
-    const d = document.getElementById("dadoD20"); rotD20 += 360;
-    d.style.transform = `rotate(${rotD20}deg)`; d.innerText = "";
-    setTimeout(() => {
-      d.innerText = rol;
-      const lim = tabela[n] || {N:20}; let res = "Fracasso", col = "#ff5555";
-      if(lim.E && rol >= lim.E) { res = "Extremo!"; col = "#00ffcc"; }
-      else if(lim.B && rol >= lim.B) { res = "Bom"; col = "#55ff55"; }
-      else if(rol >= lim.N) { res = "Normal"; col = "#ffff55"; }
-      document.getElementById("resTeste").innerHTML = `<span style='color:${col}'>${res}</span>`;
-    }, 600);
-  }
-
-  function rolarDano(expr, nome) {
-    const d = document.getElementById("dadoDano"); rotDano += 360;
-    d.style.transform = `rotate(${rotDano}deg)`; d.innerText = "";
-    setTimeout(() => {
-      const comps = expr.match(/(\d*d\d+|\d+)/g); if(!comps) return;
-      let total = 0, visual = [];
-      comps.forEach(c => {
-        if(c.includes("d")) {
-          const [q, f] = c.split("d").map(Number);
-          let subt = 0, rolls = [];
-          for(let i=0; i<(q||1); i++) { let r = Math.floor(Math.random()*f)+1; subt += r; rolls.push(r); }
-          total += subt; visual.push(rolls.join("+"));
-        } else { total += parseInt(c); visual.push(c); }
-      });
-      d.innerText = total;
-      document.getElementById("resDanoTexto").innerText = `${nome}: ${total}`;
-      document.getElementById("resDanoDetalhes").innerText = `Rolagens: (${visual.join(") + (")})`;
-    }, 600);
-  }
-
-  // --- UTILITÁRIOS ---
-  function updateBase(p, v) { ficha.periciasBase[p] = parseInt(v) || 0; calcTudo(); }
-  function aplicarClasse() { ficha.classe = document.getElementById("classeAgente").value; calcTudo(); }
-  function getFinalVal(p) { return (ficha.periciasBase[p] || 0) + ((classBonuses[ficha.classe] || {})[p] || 0); }
-  function togglePericiasGeral() {
-    periciasMinimizadas = !periciasMinimizadas;
-    document.querySelectorAll('.pericia-grid').forEach(g => g.style.display = periciasMinimizadas ? "none" : "grid");
-    document.getElementById('btnToggleGeral').innerText = periciasMinimizadas ? "[ + ] Expandir Perícias" : "[ - ] Recolher Perícias";
-  }
-  function uploadFoto() {
-    const file = document.getElementById("inputFoto").files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => { document.getElementById("previewFoto").src = e.target.result; autoSalvar(true); };
-    if(file) reader.readAsDataURL(file);
-  }
-  function deletarAtual() { if(confirm("Apagar permanentemente este agente?")) { localStorage.removeItem("agente_" + ficha.nome); location.reload(); } }
-
-  function openTab(e, n) {
-    document.querySelectorAll(".tab-content").forEach(c => c.style.display="none");
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    document.getElementById(n).style.display="block"; e.currentTarget.classList.add("active");
-  }
-
-  function addArma() {
-    const n = document.getElementById("armaNome").value, d = document.getElementById("armaDano").value;
-    if(n && d) { (ficha.armas = ficha.armas || []).push({n, d}); renderArmas(); autoSalvar(); }
-  }
-  function renderArmas() {
-    const l = document.getElementById("listaArmas"); l.innerHTML = "";
-    (ficha.armas || []).forEach((a, i) => {
-      l.innerHTML += `<div class="item-row"><strong>${a.n}</strong><span>${a.d}</span><div><button class="action-btn" onclick="rolarDano('${a.d}', '${a.n}')">⚔️</button> <button class="action-btn" onclick="ficha.armas.splice(${i},1);renderArmas();autoSalvar()" style="color:red">✖</button></div></div>`;
-    });
-  }
-
-  function calcPeso() {
-    const f = getFinalVal("força"); const max = document.getElementById("checkMochila").checked ? f * 2 : f;
-    let atual = 0; (ficha.inventario || []).forEach(i => atual += (i.p || 0));
-    document.getElementById("progress-fill").style.width = Math.min((atual/max)*100, 100) + "%";
-    document.getElementById("labelCarga").innerText = `Carga: ${atual} / ${max}`;
-  }
-  function addItem() { (ficha.inventario = ficha.inventario || []).push({n:"Novo Item", p:1}); renderInv(); autoSalvar(); }
-  function renderInv() {
-    const l = document.getElementById("listaItens"); l.innerHTML = "";
-    (ficha.inventario || []).forEach((it, i) => {
-      l.innerHTML += `<div class="item-row"><input type="text" value="${it.n}" onchange="ficha.inventario[${i}].n=this.value;autoSalvar()"><input type="number" value="${it.p}" style="width:45px" onchange="ficha.inventario[${i}].p=parseInt(this.value);calcPeso();autoSalvar()"> <button onclick="ficha.inventario.splice(${i},1);renderInv();calcPeso();autoSalvar()" style="color:red;background:none;border:none;cursor:pointer">✖</button></div>`;
-    });
-    calcPeso();
-  }
-
-  function calcTudo() {
-    for (let cat in categorias) {
-      const catId = cat.replace(/\s+/g, ''); let soma = 0;
-      categorias[cat].forEach(p => {
-        const b = (classBonuses[ficha.classe] || {})[p] || 0; const t = getFinalVal(p);
-        const bTag = document.getElementById(`b_${p}`); const totTag = document.getElementById(`tot_${p}`);
-        if(bTag) bTag.innerText = b > 0 ? `(+${b})` : ""; if(totTag) totTag.innerText = t; soma += t;
-      });
-      if(document.getElementById(`soma_${catId}`)) document.getElementById(`soma_${catId}`).innerText = soma;
-    }
-    calcPeso();
-  }
+/* ---------- Início ---------- */
+window.addEventListener("resize",resize);
+window.addEventListener("beforeunload",()=>{try{localStorage.setItem("espectral_v2",JSON.stringify(S))}catch(e){}});
+init();notasInit();load();resize();
+document.body.dataset.tema=S.cfg.tema;setTema(S.cfg.tema);setEscala(S.cfg.escala);
+preencher();lista();requestAnimationFrame(frame);if(!armOk)$("salvo").textContent="⚠ sem armazenamento neste modo — nada será salvo (use ⚙ Exportar backup)";
 </script>
 </body>
 </html>
