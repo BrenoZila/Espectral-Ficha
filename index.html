@@ -15,7 +15,7 @@ html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--tx);font:14px/1.45 "Segoe UI",system-ui,sans-serif;overflow:hidden;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0}
-.app{position:relative;z-index:1;display:flex;height:100%}
+.app{position:relative;z-index:1;display:flex;height:100%;visibility:hidden}.pronto .app{visibility:visible}
 .glass{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--bd);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.45),inset 0 0 0 1px rgba(var(--ac),.05)}
 aside{width:250px;flex:none;margin:12px 0 12px 12px;padding:14px 10px;display:flex;flex-direction:column}
 .logo{font-family:var(--mono);color:var(--a);text-align:center;letter-spacing:3px;font-size:13px;margin:0 0 4px;text-transform:uppercase}
@@ -278,16 +278,66 @@ function norm(d){const b=novaFicha(d.nome);const f=Object.assign(b,d);
  if(!f.foto||/via\.placeholder/.test(f.foto))f.foto=PH;
  return f}
 function F(){return S.agentes[S.atual]}
-function load(){
- try{const r=localStorage.getItem("espectral_v2");if(r){const p=JSON.parse(r);S=Object.assign(S,p);S.cfg=Object.assign({tema:"padrao",escala:100},p.cfg||{})}}catch(e){}
- try{if(!S.migrado){for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);
-   if(k&&k.indexOf("agente_")===0){try{const d=norm(JSON.parse(localStorage.getItem(k)));S.agentes[d.id]=d}catch(e){}}}
-   S.migrado=true}}catch(e){}
+/* ---------- Armazenamento: localStorage + IndexedDB (um espelha o outro) ---------- */
+const LSK="esp2_a_",LSM="esp2_meta",ILEG="espectral_v2";
+let idb=null,dirty=new Set(),apagados=[];
+function lsSet(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+function idbAbrir(){return new Promise(ok=>{let fim=0;const f=v=>{if(!fim){fim=1;ok(v)}};
+ try{const r=indexedDB.open("espectral-rpg",1);
+  r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore("f",{keyPath:"id"});d.createObjectStore("m")};
+  r.onsuccess=()=>{idb=r.result;idb.onversionchange=()=>{idb.close();idb=null};f(true)};
+  r.onerror=r.onblocked=()=>f(false)}catch(e){f(false)}
+ setTimeout(()=>f(false),2500)})}
+function idbReq(st,modo,fn){return new Promise(ok=>{if(!idb)return ok(null);
+ try{const t=idb.transaction(st,modo),r=fn(t.objectStore(st));t.oncomplete=()=>ok({v:r&&r.result});t.onerror=t.onabort=()=>ok(null)}catch(e){ok(null)}
+ setTimeout(()=>ok(null),6000)})}
+function mostra(ok){const el=$("salvo");el.classList.toggle("v",ok);el.textContent=ok?"● salvo":"⚠ não foi possível salvar — use ⚙ Exportar backup"}
+/* salvar(): sem argumento marca a ficha aberta; salvar(null) grava só as configurações; salvar(id) marca outra ficha */
+function salvar(a){if(a===undefined){if(S.atual)dirty.add(S.atual)}else if(a)dirty.add(a);
+ $("salvo").classList.remove("v");$("salvo").textContent="… salvando";clearTimeout(timer);timer=setTimeout(flush,250)}
+function flush(){clearTimeout(timer);timer=0;const ids=[...dirty].filter(id=>S.agentes[id]),agora=Date.now();dirty.clear();
+ const meta={atual:S.atual,cfg:S.cfg,migrado:S.migrado,apagados:apagados,ts:agora};
+ const jobs=ids.map(id=>{const f=S.agentes[id];f.ts=agora;const l=lsSet(LSK+id,JSON.stringify(f));
+  return idbReq("f","readwrite",st=>st.put(f)).then(r=>({id,ok:l||!!r,l,i:!!r}))});
+ const lm=lsSet(LSM,JSON.stringify(meta));
+ jobs.push(idbReq("m","readwrite",st=>st.put(meta,"meta")).then(r=>({id:null,ok:lm||!!r,l:lm,i:!!r})));
+ return Promise.all(jobs).then(rs=>{rs.forEach(r=>{if(!r.ok&&r.id)dirty.add(r.id)});const tudo=rs.every(r=>r.ok);
+  $("salvo").title="localStorage: "+(rs.every(r=>r.l)?"ok":"falhou")+" · IndexedDB: "+(rs.every(r=>r.i)?"ok":"indisponível ou falhou");
+  if(!timer)mostra(tudo);return tudo})}
+function flushSync(){if(timer||dirty.size)flush()}
+function apagarFicha(id){delete S.agentes[id];dirty.delete(id);if(apagados.indexOf(id)<0)apagados.push(id);if(apagados.length>300)apagados.shift();
+ try{localStorage.removeItem(LSK+id)}catch(e){}idbReq("f","readwrite",st=>st.delete(id))}
+function encolher(src){return new Promise(ok=>{const im=new Image();
+ im.onload=()=>{try{const c=document.createElement("canvas"),k=Math.min(1,256/Math.max(im.width,im.height)),x=c.getContext("2d");
+  c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));x.fillStyle="#1b1b22";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.85))}catch(e){ok(src)}};
+ im.onerror=()=>ok(src);im.src=src;setTimeout(()=>ok(src),5000)})}
+async function load(){
+ let mL=null,mI=null;const L={},I={};
+ try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf(LSK)===0){try{const f=JSON.parse(localStorage.getItem(k));if(f&&f.id)L[f.id]=f}catch(e){}}}
+  const m=localStorage.getItem(LSM);if(m)mL=JSON.parse(m)}catch(e){}
+ if(await idbAbrir()){const r=await idbReq("f","readonly",st=>st.getAll());if(r&&r.v)r.v.forEach(f=>{if(f&&f.id)I[f.id]=f});
+  const m=await idbReq("m","readonly",st=>st.get("meta"));if(m&&m.v)mI=m.v}
+ const meta=(mI&&(!mL||(mI.ts||0)>=(mL.ts||0)))?mI:mL;
+ apagados=[...new Set([...((mL&&mL.apagados)||[]),...((mI&&mI.apagados)||[])])];
+ const ag={};new Set([...Object.keys(L),...Object.keys(I)]).forEach(id=>{if(apagados.indexOf(id)>=0)return;const a=L[id],b=I[id];ag[id]=!a?b:!b?a:((b.ts||0)>=(a.ts||0)?b:a)});
+ S.agentes=ag;if(meta){S.atual=meta.atual;S.cfg=Object.assign({tema:"padrao",escala:100},meta.cfg||{});S.migrado=!!meta.migrado}
+ /* fichas da versão anterior desta página: um bloco único em "espectral_v2" */
+ let blob=null;try{const r=localStorage.getItem(ILEG);if(r)blob=JSON.parse(r)}catch(e){}
+ if(blob&&blob.agentes){for(const id in blob.agentes){if(!S.agentes[id]&&apagados.indexOf(id)<0){S.agentes[id]=blob.agentes[id];dirty.add(id)}}
+  if(!meta){S.atual=blob.atual;S.cfg=Object.assign({tema:"padrao",escala:100},blob.cfg||{});S.migrado=!!blob.migrado}}
+ /* fichas da versão original: uma chave "agente_<nome>" por personagem */
+ if(!S.migrado){try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);
+   if(k&&k.indexOf("agente_")===0){try{const d=JSON.parse(localStorage.getItem(k));d.id="l_"+k.slice(7);if(!S.agentes[d.id]&&apagados.indexOf(d.id)<0){S.agentes[d.id]=d;dirty.add(d.id)}}catch(e){}}}
+  const u=localStorage.getItem("ultimoAgente");if(u&&S.agentes["l_"+u])S.atual="l_"+u;S.migrado=true}catch(e){}}
  for(const id in S.agentes)S.agentes[id]=norm(S.agentes[id]);
- if(!S.agentes[S.atual]){const ids=Object.keys(S.agentes);if(ids.length)S.atual=ids[0];else{const f=novaFicha();S.agentes[f.id]=f;S.atual=f.id}}}
-function salvar(){clearTimeout(timer);$("salvo").classList.remove("v");$("salvo").textContent="… salvando";
- timer=setTimeout(()=>{try{localStorage.setItem("espectral_v2",JSON.stringify(S));$("salvo").textContent="● salvo";$("salvo").classList.add("v")}
- catch(e){$("salvo").textContent="⚠ não foi possível salvar — use ⚙ Exportar backup"}},250)}
+ await Promise.all(Object.values(S.agentes).map(async f=>{if(/^data:/.test(f.foto)&&f.foto.length>120000){f.foto=await encolher(f.foto);dirty.add(f.id)}}));
+ if(dirty.size){const ok=await flush();if(ok&&blob){try{localStorage.removeItem(ILEG)}catch(e){}}}}
+function start(){try{
+ if(!Object.keys(S.agentes).length){const f=novaFicha();S.agentes[f.id]=f;S.atual=f.id;dirty.add(f.id)}
+ if(!S.agentes[S.atual])S.atual=Object.keys(S.agentes)[0];
+ document.body.dataset.tema=S.cfg.tema;setTema(S.cfg.tema);setEscala(S.cfg.escala);preencher();lista();
+ if(!armOk&&!idb)$("salvo").textContent="⚠ sem armazenamento neste modo — nada será salvo (use ⚙ Exportar backup)"}
+ finally{document.body.classList.add("pronto")}}
 function campo(k,v){F()[k]=v;if(k==="nome"||k==="classe")lista();salvar()}
 
 /* ---------- Anotações: páginas com texto + desenho ---------- */
@@ -322,12 +372,12 @@ function abrirNotas(){np=0;modal("mNotas",1);notaModo("esc");carregaPag()}
 function testeArm(){try{localStorage.setItem("__t","1");localStorage.removeItem("__t");return true}catch(e){return false}}
 const armOk=testeArm();
 function abrirCfg(){const o=String(location.protocol)==="file:"?"arquivo local (file://)":String(location.origin);
- $("infoArm").textContent="Salvamento automático: "+(armOk?"ativo no navegador (localStorage)":"INDISPONÍVEL neste modo de abertura")+" · origem: "+o+". Os dados ficam só neste navegador e nesta origem; use o backup para levar para outro lugar.";modal("mCfg",1)}
+ $("infoArm").textContent="Salvamento automático: "+(armOk||idb?"ativo":"INDISPONÍVEL neste modo de abertura")+" (localStorage "+(armOk?"✔":"✖")+" · IndexedDB "+(idb?"✔":"✖")+") · origem: "+o+". Os dados ficam só neste navegador e nesta origem; use o backup para levar para outro lugar.";modal("mCfg",1)}
 function exportar(){const b=new Blob([JSON.stringify({espectral:2,atual:S.atual,agentes:S.agentes})],{type:"application/json"}),a=document.createElement("a");
  a.href=URL.createObjectURL(b);a.download="espectral-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}
 function importar(inp){const file=inp.files[0];if(!file)return;const r=new FileReader();
  r.onload=e=>{try{const d=JSON.parse(e.target.result);const L=d&&d.agentes?Object.values(d.agentes):Array.isArray(d)?d:(d&&d.nome?[d]:[]);if(!L.length)throw 0;
-  let ult=null;L.forEach(x=>{const f=norm(x);S.agentes[f.id]=f;ult=f.id});abrir(ult);ask(L.length+" espectro(s) importado(s).",null,{ok:"OK"})}catch(_){ask("Arquivo inválido: não encontrei fichas nele.",null,{ok:"OK"})}};
+  let ult=null;L.forEach(x=>{const f=norm(x);S.agentes[f.id]=f;dirty.add(f.id);apagados=apagados.filter(x=>x!==f.id);ult=f.id});abrir(ult);ask(L.length+" espectro(s) importado(s).",null,{ok:"OK"})}catch(_){ask("Arquivo inválido: não encontrei fichas nele.",null,{ok:"OK"})}};
  r.readAsText(file);inp.value=""}
 /* ---------- Diálogo próprio ---------- */
 let askCb=null;
@@ -335,9 +385,9 @@ function ask(msg,cb,opt){opt=opt||{};$("askMsg").textContent=msg;$("askIn").styl
 function askFim(ok){const cb=askCb,v=$("askIn").value;askCb=null;modal("mAsk",0);if(ok&&cb)cb(v)}
 /* ---------- Sidebar / Agentes ---------- */
 function lista(){$("lista").innerHTML=Object.values(S.agentes).map(a=>`<div class="ag ${a.id===S.atual?"on":""}" onclick="abrir('${a.id}')"><img src="${esc(a.foto)}" alt=""><div><b>${esc(a.nome)||"Sem nome"}</b><small>${esc(a.classe)||"S/ classe"}</small></div></div>`).join("")}
-function abrir(id){S.atual=id;preencher();lista();salvar()}
-function novo(){ask("Nome do novo espectro:",n=>{const f=novaFicha((n||"").trim()||"Novo Espectro");S.agentes[f.id]=f;abrir(f.id)},{input:1,ok:"Criar"})}
-function deletar(){ask("Apagar permanentemente este espectro?",()=>{delete S.agentes[S.atual];
+function abrir(id){S.atual=id;preencher();lista();salvar(null)}
+function novo(){ask("Nome do novo espectro:",n=>{const f=novaFicha((n||"").trim()||"Novo Espectro");S.agentes[f.id]=f;dirty.add(f.id);abrir(f.id)},{input:1,ok:"Criar"})}
+function deletar(){ask("Apagar permanentemente este espectro?",()=>{apagarFicha(S.atual);
  const ids=Object.keys(S.agentes);if(ids.length)S.atual=ids[0];else{const f=novaFicha();S.agentes[f.id]=f;S.atual=f.id}
  preencher();lista();salvar()},{ok:"Apagar"})}
 
@@ -467,8 +517,8 @@ function upFoto(inp){const file=inp.files[0];if(!file)return;const r=new FileRea
   const u=c.toDataURL("image/jpeg",.8);F().foto=u;$("foto").src=u;lista();salvar()};im.src=e.target.result};r.readAsDataURL(file);inp.value=""}
 
 /* ---------- Temas & escala ---------- */
-function setTema(k){S.cfg.tema=k;document.body.dataset.tema=k;document.querySelectorAll("#temas .btn").forEach(b=>b.classList.toggle("on",b.dataset.k===k));spawn();salvar()}
-function setEscala(v){S.cfg.escala=v;document.body.style.zoom=v/100;$("escLbl").textContent=v+"%";$("esc").value=v;salvar()}
+function setTema(k){S.cfg.tema=k;document.body.dataset.tema=k;document.querySelectorAll("#temas .btn").forEach(b=>b.classList.toggle("on",b.dataset.k===k));spawn();salvar(null)}
+function setEscala(v){S.cfg.escala=v;document.body.style.zoom=v/100;$("escLbl").textContent=v+"%";$("esc").value=v;salvar(null)}
 
 /* ---------- Fundo animado ---------- */
 const cv=$("bg"),cx=cv.getContext("2d");let W=0,H=0,P=[];
@@ -496,10 +546,11 @@ function frame(t){const T=TEMAS[S.cfg.tema]||TEMAS.padrao,c=T[1].join(","),k=T[3
 
 /* ---------- Início ---------- */
 window.addEventListener("resize",resize);
-window.addEventListener("beforeunload",()=>{try{localStorage.setItem("espectral_v2",JSON.stringify(S))}catch(e){}});
-init();notasInit();load();resize();
-document.body.dataset.tema=S.cfg.tema;setTema(S.cfg.tema);setEscala(S.cfg.escala);
-preencher();lista();requestAnimationFrame(frame);if(!armOk)$("salvo").textContent="⚠ sem armazenamento neste modo — nada será salvo (use ⚙ Exportar backup)";
+addEventListener("pagehide",flushSync);addEventListener("beforeunload",flushSync);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushSync()});
+document.addEventListener("input",()=>salvar());document.addEventListener("change",()=>salvar());
+init();notasInit();resize();requestAnimationFrame(frame);
+load().catch(e=>{try{console.error(e)}catch(_){}}).then(start);
 </script>
 </body>
 </html>
